@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ajedrez Aventura</title>
+<meta name="description" content="Aprende ajedrez paso a paso con Robi: misiones, estrellas y partidas.">
+<meta name="theme-color" content="#0f1f7a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ajedrez">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: juguetón y claro, para un niño de 6 años que ya lee; frases cortas, mucho premio.
+   IDEA: un mundo de bloques tipo videojuego, con misiones que se desbloquean una por una.
+   PICTURE: el tablero de bloques gigante es el juego; Robi, un robot de bloques, guía al lado.
+   COLOUR and TYPE: azul rey profundo, amarillo sol, verde lima, rosa como acento; Lilita One + Nunito.
+   LAYOUT: mapa de misiones en cuadrícula; en juego, tablero grande y panel del entrenador al lado (apilado en móvil). */
+:root{color-scheme:light dark;--bg:#1d3bd8;--deep:#0f1f7a;--sun:#ffd23f;--lime:#7ee03b;--pink:#ff4d8d;--cyan:#38d3ff;--ink:#fff;--card:#fff;--cink:#14204f;--l:#fde7b5;--d:#e98a3a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:800 16px/1.5 Nunito,system-ui,sans-serif;overflow-x:clip;min-height:100vh;
+background-image:linear-gradient(rgba(255,255,255,.05) 2px,transparent 2px),linear-gradient(90deg,rgba(255,255,255,.05) 2px,transparent 2px);background-size:48px 48px}
+h1,h2,h3,.btn,.big{font-family:"Lilita One",Nunito,sans-serif;font-weight:400;letter-spacing:.3px}
+.band{padding:clamp(16px,3vw,40px) max(4vw,14px)}
+.wrap{max-width:1240px;margin:0 auto}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px max(4vw,14px);background:var(--deep);border-bottom:6px solid #0a1557}
+header.top h1{margin:0;font-size:clamp(24px,4vw,34px);line-height:1.05;color:var(--sun);text-shadow:0 3px 0 #0a1557}
+.sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--cink);border-radius:12px;padding:6px 12px;box-shadow:0 4px 0 #0a1557;white-space:nowrap}
+.pill svg{width:20px;height:20px}
+.tog{background:transparent;border:3px solid rgba(255,255,255,.35);color:#fff;border-radius:12px;padding:6px 10px;font:800 14px Nunito,system-ui,sans-serif;cursor:pointer;min-height:40px}
+.tog[aria-pressed=true]{background:var(--lime);border-color:var(--lime);color:var(--cink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:8px 18px;border:0;border-radius:14px;background:var(--sun);color:var(--cink);font-size:19px;cursor:pointer;box-shadow:0 5px 0 #b38a00;transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #b38a00}
+.btn.g{background:var(--lime);box-shadow:0 5px 0 #4b9a17}.btn.p{background:var(--pink);color:#fff;box-shadow:0 5px 0 #b3245a}
+.btn.w{background:#fff;box-shadow:0 5px 0 #a9b3e0}
+button:focus-visible{outline:4px solid var(--cyan);outline-offset:3px}
+/* mapa */
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;margin-bottom:22px}
+.robi{width:clamp(84px,14vw,130px);height:auto;filter:drop-shadow(0 6px 0 rgba(0,0,0,.25))}
+.bub{position:relative;background:#fff;color:var(--cink);border-radius:18px;padding:14px 18px;font-size:clamp(16px,2.2vw,19px);box-shadow:0 6px 0 rgba(0,0,0,.2)}
+.bub::before{content:"";position:absolute;left:-12px;top:26px;border:12px solid transparent;border-right-color:#fff;border-left:0}
+.hero h2{margin:0 0 4px;font-size:clamp(28px,4.5vw,46px);line-height:1.05;color:var(--sun)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:18px}
+.tile{position:relative;text-align:left;border:0;border-radius:18px;padding:16px;min-height:150px;cursor:pointer;color:var(--cink);display:flex;flex-direction:column;gap:4px;box-shadow:0 8px 0 rgba(0,0,0,.28);transition:transform .1s;font:800 15px Nunito,system-ui,sans-serif}
+.tile:hover{transform:translateY(-3px)}
+.tile .n{position:absolute;top:10px;right:12px;font:22px "Lilita One",system-ui,sans-serif;opacity:.45}
+.tile .gl{font-size:44px;line-height:1;font-family:"Lilita One","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif}
+.tile h3{margin:4px 0 0;font-size:22px;line-height:1.1}
+.tile .st{display:flex;gap:2px;margin-top:auto}.tile .st svg{width:22px;height:22px}
+.tile.lock{background:#5a67a8!important;color:#c9d0f5;cursor:not-allowed}
+.tile.next{outline:5px solid #fff;animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.foot{margin-top:28px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;color:#c9d3ff;font-size:14px}
+.link{background:none;border:0;color:#c9d3ff;text-decoration:underline;font:800 14px Nunito,system-ui,sans-serif;cursor:pointer;min-height:44px}
+/* juego */
+.pg{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:clamp(16px,3vw,36px);align-items:start;max-width:1140px;margin:0 auto}
+.ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.ph h2{margin:0;font-size:clamp(24px,3.6vw,36px);line-height:1.05;color:var(--sun)}
+.bf{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:minmax(0,1fr) 24px;gap:4px;max-width:600px}
+.rk,.fl{display:grid;font:20px "Lilita One",system-ui,sans-serif;color:#fff;text-align:center}
+.rk{grid-template-rows:repeat(8,1fr);align-items:center}.fl{grid-template-columns:repeat(8,1fr);grid-column:2}
+.bx{container-type:inline-size;border:8px solid var(--deep);border-radius:14px;box-shadow:0 10px 0 #0a1557;overflow:hidden;background:var(--deep)}
+.board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));aspect-ratio:1}
+.sq{position:relative;overflow:hidden;min-height:0;border:0;padding:0;margin:0;display:grid;place-items:center;cursor:pointer;font-size:10.5cqw;line-height:1;box-shadow:inset 0 -.6cqw 0 rgba(0,0,0,.12),inset 0 .5cqw 0 rgba(255,255,255,.25)}
+.sq.l{background:var(--l)}.sq.d{background:var(--d)}
+.sq.last{background:#ffe066}.sq.d.last{background:#f5c13b}
+.sq.sel{background:var(--lime)!important}
+.sq.hint{background:var(--cyan)!important}
+.sq.chk{background:radial-gradient(circle,#ff2d55 0 45%,#ff8fa3 75%)!important}
+.sq.dot::after{content:"";position:absolute;width:30%;height:30%;border-radius:6px;background:rgba(15,31,122,.45)}
+.sq.cap::after{content:"";position:absolute;inset:6%;border:1.1cqw solid rgba(255,45,85,.8);border-radius:10px}
+.sq.ok{animation:ok .6s}.sq.bad{animation:bad .5s}
+.sq.glow{background:var(--pink)!important;animation:pulse 1s infinite}
+@keyframes ok{0%{background:var(--lime)}}@keyframes bad{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes pulse{50%{filter:brightness(1.25)}}
+.pc{font-family:"Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",sans-serif;position:relative;z-index:1;pointer-events:none}
+.pc.w{color:#fff;-webkit-text-stroke:.5cqw #14204f;paint-order:stroke fill;text-shadow:0 .5cqw 0 rgba(0,0,0,.25)}
+.pc.b{color:#1b1b2b;-webkit-text-stroke:.3cqw #fff;paint-order:stroke fill;text-shadow:0 .5cqw 0 rgba(0,0,0,.2)}
+.star{position:absolute;width:70%;height:70%;animation:spin 3s linear infinite}
+@keyframes spin{50%{transform:scale(.85) rotate(12deg)}}
+.side{display:flex;flex-direction:column;gap:16px}
+.coach{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start}
+.coach .robi{width:clamp(70px,10vw,96px)}
+.coach .bub{min-height:84px}
+.info{background:var(--deep);border-radius:16px;padding:14px 16px;display:grid;gap:8px;box-shadow:0 6px 0 #0a1557}
+.info .row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.big{font-size:clamp(40px,7vw,64px);line-height:1;color:var(--sun);text-align:center}
+.ctrls{display:flex;flex-wrap:wrap;gap:12px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}
+.opts .btn{font-size:22px}
+.btn.right{background:var(--lime)}.btn.wrong{background:#c7cbe0;opacity:.6}
+.qz{background:#fff;color:var(--cink);border-radius:20px;padding:clamp(18px,3vw,30px);box-shadow:0 10px 0 #0a1557;display:grid;gap:16px}
+.qz h3{margin:0;font-size:clamp(22px,3.4vw,32px);line-height:1.15}
+.qz .gls{font-size:clamp(46px,8vw,72px);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2",sans-serif;color:var(--bg)}
+.qz .opts .btn{box-shadow:0 5px 0 #b38a00}
+.lvl{display:flex;gap:8px;flex-wrap:wrap}.lvl .tog{color:#fff}
+.mat{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:14px}
+.bar{height:14px;border-radius:7px;background:#ff4d8d;overflow:hidden}.bar i{display:block;height:100%;background:var(--lime)}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(5,10,50,.7);display:grid;place-items:center;padding:16px;z-index:20}
+.ov[hidden]{display:none}
+.md{background:#fff;color:var(--cink);border-radius:24px;padding:26px;max-width:420px;width:100%;text-align:center;box-shadow:0 12px 0 #0a1557;display:grid;gap:12px;animation:pop .35s}
+.md h2{margin:0;font-size:36px;line-height:1.05;color:var(--bg)}
+.md .st{display:flex;justify-content:center;gap:6px}.md .st svg{width:54px;height:54px}
+.md .bt{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+@keyframes pop{0%{transform:scale(.6);opacity:0}}
+.cf{position:fixed;top:-20px;width:12px;height:12px;z-index:30;pointer-events:none;animation:fall 2.2s linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+@media(max-width:820px){.pg{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.hero{grid-template-columns:minmax(0,1fr)}.hero .robi{margin:0 auto}.bub::before{display:none}.bf{grid-template-columns:16px minmax(0,1fr)}.rk,.fl{font-size:15px}.tile{min-height:130px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Ajedrez Aventura</h1><span class="sp"></span>
+  <span class="pill" title="Gemas"><svg viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z" fill="#38d3ff" stroke="#0f1f7a" stroke-width="2"/><path d="M2 9h20M9 3l3 18 3-18" stroke="#0f1f7a" stroke-width="1.5" fill="none"/></svg><b id="gems">0</b></span>
+  <span class="pill" id="rank">Peón novato</span>
+  <button class="tog" id="tInst" hidden style="background:var(--sun);border-color:var(--sun);color:var(--cink)">Instalar</button>
+  <button class="tog" id="tSnd" aria-pressed="true">Sonido</button>
+  <button class="tog" id="tVoz" aria-pressed="false">Voz de Robi</button>
+</header>
+
+<main>
+<section id="map" class="band"><div class="wrap">
+  <div class="hero">
+    <svg class="robi" viewBox="0 0 100 100" aria-hidden="true"><use href="#robi"/></svg>
+    <div class="bub"><h2>¡Hola, Jacobo!</h2><span id="mapMsg">Soy Robi, tu entrenador de ajedrez. Completa las misiones en orden para ganar gemas y subir de rango.</span></div>
+  </div>
+  <div class="grid" id="tiles"></div>
+  <div class="foot"><span>El progreso se guarda en este navegador.</span><button class="link" id="unlock">Desbloquear todas las misiones (para papá)</button><button class="link" id="reset">Borrar progreso</button></div>
+</div></section>
+
+<section id="play" class="band" hidden>
+  <div class="pg">
+    <div>
+      <div class="ph"><button class="btn w" id="back">Mapa</button><h2 id="ptitle"></h2><span class="pill" id="pstep"></span></div>
+      <div class="bf" id="bfr">
+        <div class="rk" id="rk"></div>
+        <div class="bx"><div class="board" id="board"></div></div>
+        <div class="fl" id="fl"></div>
+      </div>
+      <div class="qz" id="quiz" hidden></div>
+    </div>
+    <aside class="side">
+      <div class="coach"><svg class="robi" viewBox="0 0 100 100" aria-hidden="true"><use href="#robi"/></svg><p class="bub" id="bubble" aria-live="polite"></p></div>
+      <div class="info" id="info"></div>
+      <div class="ctrls" id="ctrls"></div>
+    </aside>
+  </div>
+</section>
+</main>
+
+<div class="ov" id="ov" hidden><div class="md" id="md"></div></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="robi" viewBox="0 0 100 100">
+    <rect x="46" y="6" width="8" height="14" fill="#0f1f7a"/><rect x="40" y="0" width="20" height="11" rx="3" fill="#ff4d8d" stroke="#0f1f7a" stroke-width="3"/>
+    <rect x="4" y="40" width="12" height="22" rx="3" fill="#7ee03b" stroke="#0f1f7a" stroke-width="4"/><rect x="84" y="40" width="12" height="22" rx="3" fill="#7ee03b" stroke="#0f1f7a" stroke-width="4"/>
+    <rect x="14" y="18" width="72" height="66" rx="12" fill="#ffd23f" stroke="#0f1f7a" stroke-width="5"/>
+    <rect x="14" y="66" width="72" height="18" rx="0" fill="#f2b900" opacity=".5"/>
+    <rect x="25" y="34" width="18" height="18" rx="4" fill="#0f1f7a"/><rect x="57" y="34" width="18" height="18" rx="4" fill="#0f1f7a"/>
+    <rect x="29" y="37" width="6" height="6" fill="#fff"/><rect x="61" y="37" width="6" height="6" fill="#fff"/>
+    <path d="M33 60h34v5a8 8 0 0 1-8 8H41a8 8 0 0 1-8-8z" fill="#0f1f7a"/><rect x="40" y="60" width="20" height="5" fill="#fff"/>
+  </symbol>
+  <symbol id="st" viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.6 7.1.8-5.3 4.9 1.5 7.1L12 17.6l-6.4 3.6 1.5-7.1-5.3-4.9 7.1-.8z" stroke="#0f1f7a" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+</svg>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+// ENGINE-START
+const FILES='abcdefgh';
+const sq=n=>[8-(+n[1]),FILES.indexOf(n[0])];
+const nm=(r,c)=>FILES[c]+(8-r);
+const START='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
+function parseFEN(f){const [p,t,cs,ep]=f.split(' ');const b=p.split('/').map(row=>{const a=[];for(const ch of row){if(/\d/.test(ch))for(let i=0;i<+ch;i++)a.push(null);else a.push(ch)}return a});
+  return {b,turn:t||'w',cs:cs&&cs!=='-'?cs:'',ep:ep&&ep!=='-'?sq(ep):null}}
+const isW=p=>!!p&&p===p.toUpperCase();
+const col=p=>p?(isW(p)?'w':'b'):null;
+const D={N:[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]],B:[[-1,-1],[-1,1],[1,-1],[1,1]],R:[[-1,0],[1,0],[0,-1],[0,1]]};
+D.Q=D.B.concat(D.R);D.K=D.Q;
+const inb=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
+function attacked(b,r,c,by){
+  const pr=by==='w'?r+1:r-1,P=by==='w'?'P':'p';
+  for(const dc of[-1,1]){if(inb(pr,c+dc)&&b[pr][c+dc]===P)return true}
+  const N=by==='w'?'N':'n',K=by==='w'?'K':'k';
+  for(const[dr,dc]of D.N){const y=r+dr,x=c+dc;if(inb(y,x)&&b[y][x]===N)return true}
+  for(const[dr,dc]of D.K){const y=r+dr,x=c+dc;if(inb(y,x)&&b[y][x]===K)return true}
+  const sl=(dirs,set)=>{for(const[dr,dc]of dirs){let y=r+dr,x=c+dc;while(inb(y,x)){const q=b[y][x];if(q){if(col(q)===by&&set.includes(q.toUpperCase()))return true;break}y+=dr;x+=dc}}return false};
+  return sl(D.B,'BQ')||sl(D.R,'RQ');
+}
+function pseudo(s){const{b,turn}=s,ms=[],opp=turn==='w'?'b':'w';
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=b[r][c];if(!p||col(p)!==turn)continue;const t=p.toUpperCase();
+    if(t==='P'){const d=turn==='w'?-1:1,st=turn==='w'?6:1,last=turn==='w'?0:7;
+      const add=(tr,tc,x)=>ms.push(Object.assign({fr:r,fc:c,tr,tc},tr===last?{promo:turn==='w'?'Q':'q'}:{},x||{}));
+      if(inb(r+d,c)&&!b[r+d][c]){add(r+d,c);if(r===st&&!b[r+2*d][c])add(r+2*d,c,{dbl:1})}
+      for(const dc of[-1,1]){const tr=r+d,tc=c+dc;if(!inb(tr,tc))continue;const q=b[tr][tc];
+        if(q&&col(q)!==turn)add(tr,tc,{cap:q});else if(!q&&s.ep&&s.ep[0]===tr&&s.ep[1]===tc)add(tr,tc,{epc:1,cap:turn==='w'?'p':'P'})}
+    }else if(t==='N'||t==='K'){
+      for(const[dr,dc]of D[t]){const tr=r+dr,tc=c+dc;if(!inb(tr,tc))continue;const q=b[tr][tc];if(!q||col(q)!==turn)ms.push({fr:r,fc:c,tr,tc,cap:q||undefined})}
+      if(t==='K'&&s.cs){const row=turn==='w'?7:0,KS=turn==='w'?'K':'k',QS=turn==='w'?'Q':'q',R=turn==='w'?'R':'r';
+        if(r===row&&c===4&&!attacked(b,row,4,opp)){
+          if(s.cs.includes(KS)&&!b[row][5]&&!b[row][6]&&b[row][7]===R&&!attacked(b,row,5,opp)&&!attacked(b,row,6,opp))ms.push({fr:r,fc:c,tr:row,tc:6,castle:1});
+          if(s.cs.includes(QS)&&!b[row][1]&&!b[row][2]&&!b[row][3]&&b[row][0]===R&&!attacked(b,row,3,opp)&&!attacked(b,row,2,opp))ms.push({fr:r,fc:c,tr:row,tc:2,castle:1});
+        }}
+    }else{
+      for(const[dr,dc]of D[t]){let tr=r+dr,tc=c+dc;while(inb(tr,tc)){const q=b[tr][tc];if(q){if(col(q)!==turn)ms.push({fr:r,fc:c,tr,tc,cap:q});break}ms.push({fr:r,fc:c,tr,tc});tr+=dr;tc+=dc}}
+    }}
+  return ms}
+function make(s,m){const b=s.b.map(r=>r.slice());const p=b[m.fr][m.fc];b[m.fr][m.fc]=null;
+  if(m.epc)b[m.fr][m.tc]=null;
+  b[m.tr][m.tc]=m.promo||p;
+  if(m.castle){const r=m.tr;if(m.tc===6){b[r][5]=b[r][7];b[r][7]=null}else{b[r][3]=b[r][0];b[r][0]=null}}
+  let cs=s.cs;if(p==='K')cs=cs.replace(/[KQ]/g,'');if(p==='k')cs=cs.replace(/[kq]/g,'');
+  const tch=(r,c)=>{if(r===7&&c===7)cs=cs.replace('K','');if(r===7&&c===0)cs=cs.replace('Q','');if(r===0&&c===7)cs=cs.replace('k','');if(r===0&&c===0)cs=cs.replace('q','')};
+  tch(m.fr,m.fc);tch(m.tr,m.tc);
+  return{b,turn:s.turn==='w'?'b':'w',cs,ep:m.dbl?[(m.fr+m.tr)/2,m.fc]:null}}
+function kingPos(b,c){const K=c==='w'?'K':'k';for(let r=0;r<8;r++)for(let x=0;x<8;x++)if(b[r][x]===K)return[r,x];return null}
+function inCheck(s,c){const k=kingPos(s.b,c);return k?attacked(s.b,k[0],k[1],c==='w'?'b':'w'):false}
+function legal(s){return pseudo(s).filter(m=>!inCheck(make(s,m),s.turn))}
+const VAL={P:100,N:300,B:320,R:500,Q:900,K:0};
+function evalB(b){let v=0;for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=b[r][c];if(!p)continue;const t=p.toUpperCase();
+  let x=VAL[t];if(t!=='K'&&t!=='R')x+=(7-Math.abs(3.5-c)*2-Math.abs(3.5-r)*2)*3;if(t==='P')x+=(isW(p)?6-r:r-1)*6;v+=isW(p)?x:-x}return v}
+const order=ms=>ms.sort((a,b)=>(b.cap?VAL[b.cap.toUpperCase()]:0)-(a.cap?VAL[a.cap.toUpperCase()]:0));
+function search(s,d,a,bt){if(d===0)return(s.turn==='w'?1:-1)*evalB(s.b);
+  const ms=order(legal(s));if(!ms.length)return inCheck(s,s.turn)?-99999+(10-d):0;
+  for(const m of ms){const v=-search(make(s,m),d-1,-bt,-a);if(v>a)a=v;if(a>=bt)break}return a}
+function best(s,depth,noise){const ms=legal(s);let bm=null,bv=-Infinity;
+  for(const m of ms){const v=-search(make(s,m),depth-1,-1e6,1e6)+Math.random()*noise;if(v>bv){bv=v;bm=m}}return bm}
+// ENGINE-END
+if(typeof window==='undefined'){module.exports={parseFEN,legal,make,inCheck,pseudo,sq,nm,best,START};}
+else{
+const GL={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'};
+const NAME={K:'Rey',Q:'Reina',R:'Torre',B:'Alfil',N:'Caballo',P:'Peón'};
+const EL={K:'el',Q:'la',R:'la',B:'el',N:'el',P:'el'};
+const PTS={P:1,N:3,B:3,R:5,Q:9,K:0};
+const g=t=>GL[t]+'︎';
+const TIP={R:'La torre va en línea recta: arriba, abajo, a la izquierda o a la derecha. ¡Tan lejos como quiera!',
+B:'El alfil va en diagonal, como una X. Siempre se queda en casillas del mismo color.',
+Q:'La reina es la más poderosa: se mueve como la torre y como el alfil juntos.',
+K:'El rey camina un solo pasito, hacia cualquier lado. ¡Es el más importante: hay que protegerlo!',
+N:'El caballo salta en forma de L: dos casillas para un lado y una para el otro. ¡Puede saltar por encima de las piezas!',
+P:'El peón camina hacia adelante una casilla (dos en su primera jugada), pero come en diagonal. ¡Si llega al final se convierte en reina!'};
+const MIS=[
+{id:'tab',t:'El mapa',sub:'Letras y números',k:'coords',ic:'a1',c:'#38d3ff'},
+{id:'R',t:'La Torre',sub:'Línea recta',k:'stars',piece:'R',c:'#ffd23f',lv:[{from:'a1',stars:['a5','e5']},{from:'a1',stars:['a8','h8','h1']},{from:'d4',stars:['d8','b8','b2','g2']}]},
+{id:'B',t:'El Alfil',sub:'Diagonales',k:'stars',piece:'B',c:'#7ee03b',lv:[{from:'c1',stars:['e3','g5']},{from:'c1',stars:['a3','d6','f4']},{from:'f1',stars:['h3','d7','a4','c2']}]},
+{id:'Q',t:'La Reina',sub:'La más poderosa',k:'stars',piece:'Q',c:'#ff8fc0',lv:[{from:'d1',stars:['d7','h3']},{from:'d1',stars:['a4','g7','b2','h8']},{from:'d4',stars:['c6','f3','a8','h5','e2']}]},
+{id:'K',t:'El Rey',sub:'Un pasito',k:'stars',piece:'K',c:'#38d3ff',lv:[{from:'e1',stars:['e3','f4']},{from:'e1',stars:['c2','b4','d6']},{from:'d4',stars:['g3','h5','f7','d8']}]},
+{id:'N',t:'El Caballo',sub:'Salta en L',k:'stars',piece:'N',c:'#ffd23f',lv:[{from:'b1',stars:['c3','e4']},{from:'b1',stars:['d2','f3','h4']},{from:'g1',stars:['e2','c3','d5','f6']}]},
+{id:'P',t:'El Peón',sub:'Adelante y come en diagonal',k:'stars',piece:'P',c:'#7ee03b',lv:[{from:'e2',stars:['e4','e6','e8']},{from:'c2',stars:['c6'],foes:['d3','c4']},{from:'g2',stars:['h8'],foes:['f3','g4','h5']}]},
+{id:'val',t:'¿Cuánto vale?',sub:'Puntos de cada pieza',k:'quiz',ic:'9',c:'#ff8fc0'},
+{id:'chk',t:'¡Jaque!',sub:'Ataca al rey',k:'puz',goal:'check',ic:'+',c:'#38d3ff',list:['4k3/8/8/8/8/8/8/R3K3 w','4k3/8/8/8/8/8/8/4KB2 w','4k3/8/8/8/4N3/8/8/4K3 w','4k3/8/8/8/8/8/8/Q3K3 w','k7/8/1P6/8/8/8/8/4K3 w']},
+{id:'mate',t:'Jaque mate',sub:'Atrapa al rey',k:'puz',goal:'mate',ic:'#',c:'#ffd23f',list:['6k1/5ppp/8/8/8/8/8/R5K1 w','4k3/8/4K3/8/8/8/8/7R w','6rk/6pp/8/6N1/8/8/8/6K1 w','k7/8/1K6/8/8/8/8/7Q w','r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq -']},
+{id:'duel',t:'Duelo con Robi',sub:'Partida completa',k:'game',ic:'VS',c:'#7ee03b'}];
+const QZ=[
+{q:'¿Cuántos puntos vale un peón?',gl:'P',o:['1','3','5'],a:0,why:'El peón vale 1 punto. Es la pieza más pequeña.'},
+{q:'¿Cuántos puntos vale la torre?',gl:'R',o:['3','5','9'],a:1,why:'La torre vale 5 puntos.'},
+{q:'¿Y la reina?',gl:'Q',o:['5','9','10'],a:1,why:'La reina vale 9 puntos. ¡Es la más valiosa!'},
+{q:'El caballo vale 3 y el alfil vale 3. ¿Cuánto valen juntos?',gl:'NB',o:['5','6','9'],a:1,why:'3 + 3 = 6.'},
+{q:'¿Cuántos peones necesitas para igualar un caballo?',gl:'N',o:['1','2','3'],a:2,why:'1 + 1 + 1 = 3, lo mismo que el caballo.'},
+{q:'¿Qué vale más: dos torres o una reina?',gl:'RRQ',o:['Dos torres','Una reina','Valen igual'],a:0,why:'Dos torres: 5 + 5 = 10. La reina vale 9. ¡10 es más que 9!'},
+{q:'Das tu caballo (3) y te comes una torre (5). ¿Ganaste o perdiste?',gl:'NR',o:['Gané 2','Perdí 2','Quedé igual'],a:0,why:'5 − 3 = 2. ¡Ganaste 2 puntos!'},
+{q:'¿Cuánto vale el rey?',gl:'K',o:['10','100','No se puede cambiar'],a:2,why:'El rey no se cambia nunca: si lo atrapan con jaque mate, se acaba el juego.'}];
+const RANKS=[[0,'Peón novato'],[15,'Caballero valiente'],[40,'Torre de hierro'],[80,'Reina estrella'],[130,'Rey del tablero']];
+const STAR=c=>`<svg viewBox="0 0 24 24"><use href="#st" fill="${c}"/></svg>`;
+let P={gems:0,done:{},all:false,snd:true,voz:false};
+try{const s=JSON.parse(localStorage.getItem('ajedrez-aventura')||'null');if(s)P=Object.assign(P,s)}catch(e){}
+const save=()=>{try{localStorage.setItem('ajedrez-aventura',JSON.stringify(P))}catch(e){}};
+let AC;const initAudio=()=>{try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}};
+function tone(f,d,t='square',v=.05,dl=0){if(!AC||!P.snd)return;try{const o=AC.createOscillator(),gn=AC.createGain(),s=AC.currentTime+dl;o.type=t;o.frequency.value=f;gn.gain.setValueAtTime(v,s);gn.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(gn);gn.connect(AC.destination);o.start(s);o.stop(s+d)}catch(e){}}
+const SND={tap:()=>tone(520,.06,'square',.03),move:()=>tone(330,.1,'triangle',.12),cap:()=>{tone(220,.14,'sawtooth',.05);tone(160,.14,'square',.04,.05)},star:()=>{tone(880,.08);tone(1320,.14,'square',.05,.08)},bad:()=>tone(140,.28,'sawtooth',.05),win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.18,'square',.05,i*.12))};
+const snd=k=>SND[k]&&SND[k]();
+function say(t){$('#bubble').textContent=t;if(!P.voz)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='es-ES';const v=speechSynthesis.getVoices().find(v=>/^es/i.test(v.lang));if(v)u.voice=v;u.rate=.95;u.pitch=1.15;speechSynthesis.speak(u)}catch(e){}}
+function hud(){$('#gems').textContent=P.gems;let r=RANKS[0][1];for(const[n,t]of RANKS)if(P.gems>=n)r=t;$('#rank').textContent=r;
+  $('#tSnd').setAttribute('aria-pressed',P.snd);$('#tVoz').setAttribute('aria-pressed',P.voz)}
+const unlocked=i=>P.all||i===0||P.done[MIS[i-1].id]!=null;
+function showMap(){G.mode=null;G.busy=false;$('#play').hidden=true;$('#map').hidden=false;
+  let nx=MIS.findIndex((m,i)=>unlocked(i)&&P.done[m.id]==null);
+  $('#tiles').innerHTML=MIS.map((m,i)=>{const u=unlocked(i),s=P.done[m.id]||0;
+    return `<button class="tile${u?'':' lock'}${i===nx?' next':''}" data-i="${i}" style="background:${m.c}" ${u?'':'aria-disabled="true"'}>
+    <span class="n">${i+1}</span><span class="gl">${u?(m.piece?g(m.piece):m.ic):'<svg width="40" height="40" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="currentColor"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2.5" fill="none"/></svg>'}</span>
+    <h3>${m.t}</h3><span>${m.sub}</span><span class="st">${[1,2,3].map(k=>STAR(k<=s?'#ffd23f':'rgba(255,255,255,.55)')).join('')}</span></button>`}).join('');
+  const done=Object.keys(P.done).length;
+  $('#mapMsg').textContent=done===0?'Soy Robi, tu entrenador de ajedrez. Completa las misiones en orden para ganar gemas y subir de rango. ¡Empieza por la misión 1!':
+    nx<0?'¡Completaste todas las misiones! Ahora reta a Robi en el nivel Difícil.':`¡Vas muy bien! Llevas ${done} de ${MIS.length} misiones. La siguiente es: ${MIS[nx].t}.`;
+  hud();window.scrollTo(0,0)}
+const G={mode:null,s:null,sel:null,tg:[],last:null,stars:new Set,busy:false,hint:[],flash:null,glow:null};
+function board(show){$('#bfr').hidden=!show;$('#quiz').hidden=show}
+$('#rk').innerHTML=[8,7,6,5,4,3,2,1].map(n=>`<span>${n}</span>`).join('');
+$('#fl').innerHTML=[...FILES].map(f=>`<span>${f}</span>`).join('');
+function draw(){const B=G.s.b;let h='';const ck=G.mode==='game'||G.mode==='puz'?['w','b'].map(c=>inCheck(G.s,c)?kingPos(G.s.b,c):null).filter(Boolean):[];
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=B[r][c],n=nm(r,c),t=G.tg.find(m=>m.tr===r&&m.tc===c);
+    let cl='sq '+((r+c)%2?'d':'l');
+    if(G.last&&((G.last[0]===r&&G.last[1]===c)||(G.last[2]===r&&G.last[3]===c)))cl+=' last';
+    if(G.sel&&G.sel[0]===r&&G.sel[1]===c)cl+=' sel';
+    if(G.hint.some(x=>x[0]===r&&x[1]===c))cl+=' hint';
+    if(ck.some(k=>k[0]===r&&k[1]===c))cl+=' chk';
+    if(G.glow===n)cl+=' glow';
+    if(G.flash&&G.flash[0]===n)cl+=' '+G.flash[1];
+    if(t)cl+=p?' cap':' dot';
+    h+=`<button class="${cl}" data-r="${r}" data-c="${c}" aria-label="${n}${p?' '+(isW(p)?'':'enemigo ')+NAME[p.toUpperCase()]:''}">${G.stars.has(n)?`<svg class="star" viewBox="0 0 24 24"><use href="#st" fill="#ffd23f"/></svg>`:''}${p?`<span class="pc ${isW(p)?'w':'b'}">${g(p.toUpperCase())}</span>`:''}</button>`}
+  $('#board').innerHTML=h}
+$('#board').addEventListener('click',e=>{const b=e.target.closest('.sq');if(b)onSq(+b.dataset.r,+b.dataset.c)});
+function onSq(r,c){initAudio();
+  if(G.mode==='coords')return coordTap(r,c);
+  if(G.busy||!G.s)return;
+  const mv=G.tg.find(m=>m.tr===r&&m.tc===c);if(mv){G.hint=[];return doMove(mv)}
+  const p=G.s.b[r][c];
+  if(p&&isW(p)){G.sel=[r,c];G.tg=movesFrom(r,c);snd('tap');const t=p.toUpperCase();
+    if(G.mode==='game'&&!G.tips[t]){G.tips[t]=1;say(TIP[t])}
+    if(!G.tg.length&&G.mode!=='stars')say(`${EL[t]==='la'?'La':'El'} ${NAME[t].toLowerCase()} no puede moverse ahora. Prueba con otra pieza.`)}
+  else{G.sel=null;G.tg=[]}
+  draw()}
+function movesFrom(r,c){return(G.mode==='stars'?pseudo(G.s):legal(G.s)).filter(m=>m.fr===r&&m.fc===c)}
+function ctrls(list){$('#ctrls').innerHTML=list.map((b,i)=>`<button class="btn ${b.c||''}" data-k="${i}">${b.t}</button>`).join('');
+  $('#ctrls').onclick=e=>{const b=e.target.closest('[data-k]');if(b){initAudio();list[+b.dataset.k].fn()}}}
+function setInfo(h){$('#info').innerHTML=h}
+function play(i){const m=MIS[i];G.mi=i;G.li=0;G.earn=[];G.err=0;G.hint=[];G.glow=null;G.flash=null;G.last=null;G.sel=null;G.tg=[];G.stars=new Set;G.busy=false;
+  $('#map').hidden=true;$('#play').hidden=false;$('#ptitle').textContent=m.t;window.scrollTo(0,0);
+  ({coords:startCoords,stars:loadLevel,quiz:startQuiz,puz:loadPuz,game:startGame})[m.k]()}
+/* ---------- estrellas ---------- */
+function par(lv){const tg=lv.stars.concat(lv.foes||[]);const full=(1<<tg.length)-1;const nf=(lv.stars).length;
+  let q=[{pos:sq(lv.from),p:lv.piece,mask:full,d:0}];const seen=new Set;
+  while(q.length){const nq=[];for(const s of q){if(!s.mask)return s.d;const k=s.pos+s.p+s.mask;if(seen.has(k))continue;seen.add(k);
+      const b=[...Array(8)].map(()=>Array(8).fill(null));tg.forEach((t,i)=>{if(i>=nf&&s.mask&(1<<i)){const[y,x]=sq(t);b[y][x]='p'}});b[s.pos[0]][s.pos[1]]=s.p;
+      for(const m of pseudo({b,turn:'w',cs:'',ep:null})){const n=nm(m.tr,m.tc);let mask=s.mask;tg.forEach((t,i)=>{if(t===n)mask&=~(1<<i)});nq.push({pos:[m.tr,m.tc],p:m.promo||s.p,mask,d:s.d+1})}}
+    q=nq}return 99}
+function loadLevel(){const m=MIS[G.mi],lv=m.lv[G.li];G.mode='stars';board(true);
+  const b=[...Array(8)].map(()=>Array(8).fill(null));const[y,x]=sq(lv.from);b[y][x]=m.piece;(lv.foes||[]).forEach(f=>{const[a,c]=sq(f);b[a][c]='p'});
+  G.s={b,turn:'w',cs:'',ep:null};G.stars=new Set(lv.stars);G.moves=0;G.par=par(Object.assign({piece:m.piece},lv));G.last=null;G.sel=[y,x];G.tg=movesFrom(y,x);
+  $('#pstep').textContent=`Nivel ${G.li+1} de ${m.lv.length}`;
+  say(G.li===0?TIP[m.piece]+' Recoge todas las estrellas.':lv.foes?'Come los peones negros (en diagonal) y recoge la estrella.':`¡Nivel ${G.li+1}! Recoge las ${lv.stars.length} estrellas con pocas movidas.`);
+  infoStars();ctrls([{t:'Reiniciar',c:'w',fn:loadLevel}]);draw()}
+function infoStars(){const f=G.s.b.flat().filter(p=>p&&!isW(p)).length;
+  setInfo(`<div class="row"><span>Movidas</span><b class="big" style="font-size:40px">${G.moves}</b></div>
+  <div class="row"><span>Reto de 3 estrellas</span><b>${G.par} movidas o menos</b></div>
+  <div class="row"><span>Faltan</span><b>${G.stars.size} estrella${G.stars.size===1?'':'s'}${f?` y ${f} peón${f>1?'es':''}`:''}</b></div>`)}
+function doMove(m){({stars:mvStars,puz:mvPuz,game:mvGame})[G.mode](m)}
+function mvStars(m){const ns=make(G.s,m);ns.turn='w';G.s=ns;G.moves++;const n=nm(m.tr,m.tc);G.last=[m.fr,m.fc,m.tr,m.tc];
+  if(G.stars.has(n)){G.stars.delete(n);snd('star')}else if(m.cap){snd('cap');say('¡Ñam! Te comiste un peón.')}else snd('move');
+  if(m.promo)say('¡Tu peón llegó al final y se convirtió en REINA!');
+  const foes=ns.b.flat().filter(p=>p&&!isW(p)).length;
+  if(!G.stars.size&&!foes){G.sel=null;G.tg=[];draw();infoStars();return levelDone()}
+  G.sel=[m.tr,m.tc];G.tg=movesFrom(m.tr,m.tc);
+  if(!G.tg.length)say('¡Uy! Ya no se puede mover. Toca «Reiniciar» para intentarlo otra vez.');
+  else if(G.moves===1&&G.li===0)say('¡Bien! Sigue así. Los cuadros oscuros te muestran a dónde puede ir.');
+  draw();infoStars()}
+function levelDone(){const m=MIS[G.mi];const s=G.moves<=G.par?3:G.moves<=G.par+2?2:1;G.earn.push(s);addGems(s);snd('win');
+  const last=G.li===m.lv.length-1;
+  const txt=s===3?`¡Perfecto! Lo hiciste en ${G.moves} movidas.`:`Lo hiciste en ${G.moves} movidas. Se puede en ${G.par}. ¿Lo intentas otra vez?`;
+  modal(last?'¡Misión completada!':'¡Nivel superado!',s,txt+` +${s} gemas`,[
+    {t:'Repetir',c:'w',fn:()=>{G.earn.pop();loadLevel()}},
+    last?{t:'Volver al mapa',c:'g',fn:()=>finishMission(Math.round(G.earn.reduce((a,b)=>a+b,0)/G.earn.length))}:{t:'Siguiente nivel',c:'g',fn:()=>{G.li++;loadLevel()}}])}
+function addGems(n){P.gems+=n;save();hud()}
+function finishMission(s){const id=MIS[G.mi].id;P.done[id]=Math.max(P.done[id]||0,s);save();showMap()}
+/* ---------- coordenadas ---------- */
+const ROUNDS=10;
+function startCoords(){G.mode='coords';board(true);G.s={b:[...Array(8)].map(()=>Array(8).fill(null))};G.round=0;G.err=0;G.stars=new Set;
+  say('Cada casilla tiene un nombre: primero la letra de abajo y después el número del lado. Por ejemplo: e4.');nextCoord()}
+function rnd(){return nm(Math.floor(Math.random()*8),Math.floor(Math.random()*8))}
+function nextCoord(){G.round++;G.flash=null;G.busy=false;$('#pstep').textContent=`Ronda ${G.round} de ${ROUNDS}`;
+  G.target=rnd();
+  if(G.round<=6){G.glow=null;setInfo(`<span>Toca la casilla</span><div class="big">${G.target}</div>`);ctrls([]);if(G.round>1)say(`Busca la ${G.target}: la letra ${G.target[0]} abajo y el número ${G.target[1]} al lado.`)}
+  else{G.glow=G.target;const o=[G.target];while(o.length<3){const x=rnd();if(!o.includes(x))o.push(x)}o.sort();
+    setInfo(`<span>¿Cómo se llama la casilla rosada?</span>`);say('Ahora al revés: ¿cómo se llama la casilla rosada?');
+    ctrls(o.map(x=>({t:x,c:'w',fn:()=>coordAns(x)})))}
+  draw()}
+function coordAns(x){if(G.busy)return;if(x===G.target){snd('star');G.busy=true;say('¡Correcto!');setTimeout(()=>G.round>=ROUNDS?coordEnd():nextCoord(),700)}
+  else{snd('bad');G.err++;say(`No es ${x}. Mira la letra de abajo y el número del lado.`)}}
+function coordTap(r,c){if(G.busy||G.round>6)return;const n=nm(r,c);
+  if(n===G.target){snd('star');G.flash=[n,'ok'];G.busy=true;say('¡Correcto! '+n);draw();setTimeout(()=>G.round>=ROUNDS?coordEnd():nextCoord(),650)}
+  else{snd('bad');G.err++;G.flash=[n,'bad'];G.glow=G.target;say(`Esa es la ${n}. La ${G.target} es la rosada.`);draw();setTimeout(()=>{G.glow=null;G.flash=null;draw()},1300)}}
+function coordEnd(){const s=G.err<=1?3:G.err<=3?2:1;addGems(s);snd('win');G.glow=null;
+  modal('¡Ya conoces el mapa!',s,`Tuviste ${G.err} error${G.err===1?'':'es'} en ${ROUNDS} rondas. +${s} gemas`,[{t:'Repetir',c:'w',fn:startCoords},{t:'Volver al mapa',c:'g',fn:()=>finishMission(s)}])}
+/* ---------- quiz ---------- */
+function startQuiz(){G.mode='quiz';board(false);G.qi=0;G.err=0;say('Cada pieza vale puntos. Así sabes si un cambio te conviene.');ctrls([]);setInfo(`<div class="row"><span>Peón</span><b>1</b></div><div class="row"><span>Caballo y Alfil</span><b>3</b></div><div class="row"><span>Torre</span><b>5</b></div><div class="row"><span>Reina</span><b>9</b></div>`);showQ()}
+function showQ(){const q=QZ[G.qi];$('#pstep').textContent=`Pregunta ${G.qi+1} de ${QZ.length}`;
+  $('#quiz').innerHTML=`<div class="gls">${[...q.gl].map(g).join(' ')}</div><h3>${q.q}</h3><div class="opts">${q.o.map((o,i)=>`<button class="btn" data-o="${i}">${o}</button>`).join('')}</div>`;
+  $('#quiz').onclick=e=>{const b=e.target.closest('[data-o]');if(!b||G.busy||b.classList.contains('wrong'))return;initAudio();const i=+b.dataset.o;
+    if(i===q.a){b.classList.add('right');snd('star');say('¡Sí! '+q.why);G.busy=true;setTimeout(()=>{G.busy=false;G.qi++;G.qi<QZ.length?showQ():quizEnd()},1600)}
+    else{b.classList.add('wrong');snd('bad');G.err++;say('Casi. Intenta otra vez.')}}}
+function quizEnd(){const s=G.err<=1?3:G.err<=3?2:1;addGems(s);snd('win');modal('¡Eres un matemático del ajedrez!',s,`+${s} gemas`,[{t:'Repetir',c:'w',fn:startQuiz},{t:'Volver al mapa',c:'g',fn:()=>finishMission(s)}])}
+/* ---------- puzzles ---------- */
+function loadPuz(){const m=MIS[G.mi];if(G.li===0)G.err=0;G.mode='puz';board(true);G.s=parseFEN(m.list[G.li]);G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.stars=new Set;
+  $('#pstep').textContent=`Reto ${G.li+1} de ${m.list.length}`;
+  say(m.goal==='check'?(G.li===0?'Jaque es cuando atacas al rey. Juegas con las blancas: ¡haz jaque al rey negro!':'Busca la jugada que hace jaque.'):(G.li===0?'Jaque mate es cuando el rey está atacado y no tiene escape. ¡Ahí se gana! Busca el jaque mate en una jugada.':'¡Encuentra el jaque mate!'));
+  setInfo(`<div class="row"><span>Juegas con</span><b>Blancas</b></div><div class="row"><span>Meta</span><b>${m.goal==='check'?'Hacer jaque':'Jaque mate en 1'}</b></div><div class="row"><span>Errores</span><b>${G.err}</b></div>`);
+  ctrls([{t:'Pista',c:'w',fn:()=>{const mv=legal(G.s).find(x=>goalOk(make(G.s,x)));if(mv){G.hint=[[mv.fr,mv.fc]];say(`Pista: usa ${EL[G.s.b[mv.fr][mv.fc]]} ${NAME[G.s.b[mv.fr][mv.fc]].toLowerCase()} que está brillando.`);draw()}}}]);draw()}
+function goalOk(ns){return MIS[G.mi].goal==='check'?inCheck(ns,'b'):inCheck(ns,'b')&&!legal(ns).length}
+function mvPuz(m){const prev=G.s,ns=make(G.s,m);G.s=ns;G.sel=null;G.tg=[];G.last=[m.fr,m.fc,m.tr,m.tc];G.busy=true;draw();
+  const mt=MIS[G.mi];
+  if(goalOk(ns)){snd('win');say(mt.goal==='check'?'¡JAQUE! ¡Muy bien!':'¡JAQUE MATE! ¡El rey no puede escapar!');addGems(1);
+    setTimeout(()=>{G.li++;if(G.li<mt.list.length)loadPuz();else{const s=G.err<=1?3:G.err<=3?2:1;modal(mt.goal==='check'?'¡Maestro del jaque!':'¡Maestro del mate!',s,`Tuviste ${G.err} error${G.err===1?'':'es'}.`,[{t:'Repetir',c:'w',fn:()=>{G.li=0;loadPuz()}},{t:'Volver al mapa',c:'g',fn:()=>finishMission(s)}])}},1500)}
+  else{snd('bad');G.err++;say(mt.goal==='mate'&&inCheck(ns,'b')?'Es jaque, pero el rey puede escapar. Busca otra jugada.':'Esa jugada no ataca al rey. ¡Intenta otra vez!');
+    setTimeout(()=>{G.s=prev;G.last=null;G.busy=false;draw()},1100)}}
+/* ---------- partida ---------- */
+const LV=[{n:'Fácil',d:1,z:220,gm:5,st:1},{n:'Medio',d:2,z:40,gm:10,st:2},{n:'Difícil',d:3,z:12,gm:20,st:3}];
+G.lvl=0;
+function startGame(){G.mode='game';board(true);G.s=parseFEN(START);G.hist=[];G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.tips={};G.stars=new Set;G.over=false;
+  $('#pstep').textContent=LV[G.lvl].n;say('¡A jugar! Tú juegas con las blancas y empiezas. Toca una pieza para ver a dónde puede ir.');gameUI();draw()}
+function mat(b,w){return b.flat().filter(p=>p&&isW(p)===w).reduce((a,p)=>a+PTS[p.toUpperCase()],0)}
+function gameUI(){const a=mat(G.s.b,true),r=mat(G.s.b,false);
+  setInfo(`<div class="row"><span>Nivel de Robi</span><span class="lvl">${LV.map((l,i)=>`<button class="tog" data-l="${i}" aria-pressed="${i===G.lvl}">${l.n}</button>`).join('')}</span></div>
+  <div class="mat"><b>Tú ${a}</b><div class="bar"><i style="width:${a+r?a/(a+r)*100:50}%"></i></div><b>${r} Robi</b></div>
+  <div class="row"><span>${a>r?`¡Vas ganando por ${a-r}!`:a<r?`Robi va ganando por ${r-a}`:'Van empatados en puntos'}</span></div>`);
+  $('#info').onclick=e=>{const b=e.target.closest('[data-l]');if(b){G.lvl=+b.dataset.l;startGame()}};
+  ctrls([{t:'Pista',c:'w',fn:hintGame},{t:'Deshacer',c:'w',fn:undo},{t:'Nueva partida',c:'p',fn:startGame}])}
+function hintGame(){if(G.busy||G.over)return;const m=best(G.s,2,0);if(!m)return;const t=G.s.b[m.fr][m.fc].toUpperCase();G.hint=[[m.fr,m.fc],[m.tr,m.tc]];G.sel=null;G.tg=[];
+  say(`Pista: mueve ${EL[t]} ${NAME[t].toLowerCase()} de ${nm(m.fr,m.fc)} a ${nm(m.tr,m.tc)}.`);draw()}
+function undo(){if(G.busy||!G.hist.length)return;G.s=G.hist.pop();G.over=false;G.last=null;G.sel=null;G.tg=[];G.hint=[];say('Listo, deshicimos la jugada. ¡Piensa con calma!');gameUI();draw()}
+function mvGame(m){if(G.over)return;G.hist.push(G.s);const mover=G.s.b[m.fr][m.fc].toUpperCase();const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.sel=null;G.tg=[];
+  let msg='';
+  if(m.cap){const t=m.cap.toUpperCase();msg=`¡Te comiste ${EL[t]} ${NAME[t].toLowerCase()} de Robi! +${PTS[t]} punto${PTS[t]>1?'s':''}.`;snd('cap')}else snd('move');
+  if(m.castle)msg='¡Enroque! Tu rey quedó protegido.';
+  if(m.promo)msg='¡Tu peón llegó al final y se convirtió en reina!';
+  if(inCheck(ns,'b'))msg+=' ¡Jaque!';
+  const pt=(m.promo||mover).toUpperCase();
+  if(pt!=='K'&&attacked(ns.b,m.tr,m.tc,'b')&&!attacked(ns.b,m.tr,m.tc,'w'))msg+=` Ojo: tu ${NAME[pt].toLowerCase()} en ${nm(m.tr,m.tc)} se puede perder.`;
+  if(msg)say(msg.trim());
+  gameUI();draw();if(endCheck())return;
+  G.busy=true;$('#pstep').textContent='Robi piensa…';
+  setTimeout(robot,350)}
+function robot(){const L=LV[G.lvl];const m=best(G.s,L.d,L.z);if(!m){G.busy=false;return}
+  const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.busy=false;$('#pstep').textContent=L.n;
+  let msg='';
+  if(m.cap){const t=m.cap.toUpperCase();msg=`Robi se comió tu ${NAME[t].toLowerCase()}.`;snd('cap')}else snd('move');
+  if(inCheck(ns,'w'))msg+=' ¡Estás en jaque! Protege a tu rey: muévelo, tapa el ataque o come la pieza que ataca.';
+  if(msg)say(msg.trim());
+  gameUI();draw();endCheck()}
+function endCheck(){const ms=legal(G.s);const only=G.s.b.flat().filter(Boolean).length===2;
+  if(ms.length&&!only)return false;G.over=true;G.busy=false;
+  const L=LV[G.lvl];
+  if(!only&&inCheck(G.s,G.s.turn)){
+    if(G.s.turn==='b'){snd('win');addGems(L.gm);P.done.duel=Math.max(P.done.duel||0,L.st);save();say('¡JAQUE MATE! ¡Le ganaste a Robi!');
+      setTimeout(()=>modal('¡Le ganaste a Robi!',L.st,`Nivel ${L.n}. +${L.gm} gemas${G.lvl<2?'. ¿Probamos el siguiente nivel?':''}`,[{t:'Otra partida',c:'w',fn:startGame},G.lvl<2?{t:'Subir de nivel',c:'g',fn:()=>{G.lvl++;startGame()}}:{t:'Volver al mapa',c:'g',fn:showMap}]),900)}
+    else{snd('bad');say('Jaque mate de Robi. ¡No pasa nada! Así se aprende.');setTimeout(()=>modal('Robi ganó esta vez',0,'Usa «Pista» cuando no sepas qué hacer y fíjate en los avisos de peligro.',[{t:'Deshacer',c:'w',fn:undo},{t:'Revancha',c:'g',fn:startGame}]),900)}}
+  else{addGems(2);say('¡Tablas! Nadie gana. +2 gemas.');setTimeout(()=>modal('¡Tablas!',1,only?'Solo quedaron los dos reyes.':'El rey no tiene jugadas pero no está en jaque: eso es «ahogado». +2 gemas',[{t:'Otra partida',c:'g',fn:startGame}]),900)}
+  return true}
+/* ---------- modal ---------- */
+function modal(t,s,txt,bt){$('#md').innerHTML=`<h2>${t}</h2>${s?`<div class="st">${[1,2,3].map(k=>STAR(k<=s?'#ffd23f':'#dfe3f5')).join('')}</div>`:''}<p>${txt}</p><div class="bt">${bt.map((b,i)=>`<button class="btn ${b.c}" data-b="${i}">${b.t}</button>`).join('')}</div>`;
+  $('#ov').hidden=false;$('#md').onclick=e=>{const b=e.target.closest('[data-b]');if(b){$('#ov').hidden=true;bt[+b.dataset.b].fn()}};
+  $('#md').querySelector('.btn:last-child').focus();
+  if(s>=2&&!matchMedia('(prefers-reduced-motion:reduce)').matches)for(let i=0;i<40;i++){const d=document.createElement('div');d.className='cf';d.style.left=Math.random()*100+'vw';d.style.background=['#ffd23f','#7ee03b','#ff4d8d','#38d3ff'][i%4];d.style.animationDelay=Math.random()*.6+'s';document.body.appendChild(d);setTimeout(()=>d.remove(),3000)}}
+/* ---------- eventos ---------- */
+$('#tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(!t)return;initAudio();const i=+t.dataset.i;if(!unlocked(i)){snd('bad');$('#mapMsg').textContent='Esa misión está cerrada. Termina la anterior para abrirla.';return}snd('tap');play(i)});
+$('#back').onclick=()=>{try{speechSynthesis.cancel()}catch(e){}showMap()};
+$('#tSnd').onclick=()=>{P.snd=!P.snd;save();hud();initAudio();snd('tap')};
+$('#tVoz').onclick=()=>{P.voz=!P.voz;save();hud();if(P.voz)say($('#play').hidden?'¡Hola Jacobo! Ahora puedo hablar.':$('#bubble').textContent);else try{speechSynthesis.cancel()}catch(e){}};
+$('#unlock').onclick=()=>{P.all=true;save();showMap()};
+let rc=0;$('#reset').onclick=e=>{if(++rc<2){e.target.textContent='Toca otra vez para confirmar';return}P={gems:0,done:{},all:false,snd:P.snd,voz:P.voz};rc=0;e.target.textContent='Borrar progreso';save();showMap()};
+showMap();
+let dp=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('#tInst').hidden=false});
+$('#tInst').onclick=async()=>{if(!dp)return;dp.prompt();try{await dp.userChoice}catch(e){}dp=null;$('#tInst').hidden=true};
+window.addEventListener('appinstalled',()=>{$('#tInst').hidden=true});
+if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
+}
+}
+</script>
+</body>
+</html>
