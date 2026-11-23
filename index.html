@@ -112,6 +112,10 @@ button:focus-visible{outline:4px solid var(--cyan);outline-offset:3px}
 @keyframes pop{0%{transform:scale(.6);opacity:0}}
 .cf{position:fixed;top:-20px;width:12px;height:12px;z-index:30;pointer-events:none;animation:fall 2.2s linear forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+.board.fade .pc,.board.fade .star{animation:drop .45s cubic-bezier(.3,1.4,.5,1) backwards;animation-delay:calc(var(--i)*55ms)}
+@keyframes drop{0%{transform:translateY(-70%) scale(.3);opacity:0}}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.bub b{color:var(--bg)}.md p{text-align:left;line-height:1.45}
 @media(max-width:820px){.pg{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.hero{grid-template-columns:minmax(0,1fr)}.hero .robi{margin:0 auto}.bub::before{display:none}.bf{grid-template-columns:16px minmax(0,1fr)}.rk,.fl{font-size:15px}.tile{min-height:130px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -226,16 +230,37 @@ function kingPos(b,c){const K=c==='w'?'K':'k';for(let r=0;r<8;r++)for(let x=0;x<
 function inCheck(s,c){const k=kingPos(s.b,c);return k?attacked(s.b,k[0],k[1],c==='w'?'b':'w'):false}
 function legal(s){return pseudo(s).filter(m=>!inCheck(make(s,m),s.turn))}
 const VAL={P:100,N:300,B:320,R:500,Q:900,K:0};
-function evalB(b){let v=0;for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=b[r][c];if(!p)continue;const t=p.toUpperCase();
-  let x=VAL[t];if(t!=='K'&&t!=='R')x+=(7-Math.abs(3.5-c)*2-Math.abs(3.5-r)*2)*3;if(t==='P')x+=(isW(p)?6-r:r-1)*6;v+=isW(p)?x:-x}return v}
+function evalB(b){let v=0,np=0;for(const row of b)for(const p of row)if(p&&'NBRQnbrq'.includes(p))np+=VAL[p.toUpperCase()];const eg=np<2600;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=b[r][c];if(!p)continue;const t=p.toUpperCase(),w=isW(p),rr=w?r:7-r,cen=7-Math.abs(3.5-c)*2-Math.abs(3.5-r)*2;
+  let x=VAL[t];
+  if(t==='N'||t==='B'){x+=cen*4;if(rr!==7)x+=14}
+  else if(t==='P'){const adv=6-rr;x+=adv*(eg?14:(c>=2&&c<=5?4:1));if((c===3||c===4)&&(rr===3||rr===4))x+=22;else if((c===2||c===5)&&(rr===3||rr===4))x+=8}
+  else if(t==='R'){if(rr===1)x+=12}
+  else if(t==='Q'){x+=eg?cen*3:0}
+  else if(t==='K'){if(eg)x+=cen*5;else{x+=rr===7?(c<=2||c>=6?30:0):-30}}
+  v+=w?x:-x}return v}
+function qs(s,a,bt,d){const sp=(s.turn==='w'?1:-1)*evalB(s.b);if(sp>=bt||d===0)return sp;if(sp>a)a=sp;
+  const caps=order(pseudo(s).filter(m=>m.cap&&m.cap.toUpperCase()!=='K'));
+  for(const m of caps){const n=make(s,m);if(inCheck(n,s.turn))continue;const v=-qs(n,-bt,-a,d-1);if(v>a)a=v;if(a>=bt)break}return a}
 const order=ms=>ms.sort((a,b)=>(b.cap?VAL[b.cap.toUpperCase()]:0)-(a.cap?VAL[a.cap.toUpperCase()]:0));
-function search(s,d,a,bt){if(d===0)return(s.turn==='w'?1:-1)*evalB(s.b);
+function search(s,d,a,bt){if(d===0)return qs(s,a,bt,4);
   const ms=order(legal(s));if(!ms.length)return inCheck(s,s.turn)?-99999+(10-d):0;
   for(const m of ms){const v=-search(make(s,m),d-1,-bt,-a);if(v>a)a=v;if(a>=bt)break}return a}
 function best(s,depth,noise){const ms=legal(s);let bm=null,bv=-Infinity;
   for(const m of ms){const v=-search(make(s,m),depth-1,-1e6,1e6)+Math.random()*noise;if(v>bv){bv=v;bm=m}}return bm}
+function attackers(b,r,c,by){const out=[],P=by==='w'?'P':'p',pr=by==='w'?r+1:r-1;
+  for(const dc of[-1,1])if(inb(pr,c+dc)&&b[pr][c+dc]===P)out.push([pr,c+dc]);
+  const N=by==='w'?'N':'n',K=by==='w'?'K':'k';
+  for(const[dr,dc]of D.N){const y=r+dr,x=c+dc;if(inb(y,x)&&b[y][x]===N)out.push([y,x])}
+  for(const[dr,dc]of D.K){const y=r+dr,x=c+dc;if(inb(y,x)&&b[y][x]===K)out.push([y,x])}
+  for(const[dirs,set]of[[D.B,'BQ'],[D.R,'RQ']])for(const[dr,dc]of dirs){let y=r+dr,x=c+dc;while(inb(y,x)){const q=b[y][x];if(q){if(col(q)===by&&set.includes(q.toUpperCase()))out.push([y,x]);break}y+=dr;x+=dc}}
+  return out}
+function searchPV(s,d,a,bt){if(d===0)return{v:qs(s,a,bt,4),pv:[]};
+  const ms=order(legal(s));if(!ms.length)return{v:inCheck(s,s.turn)?-99999+(10-d):0,pv:[]};
+  let pv=[];for(const m of ms){const x=searchPV(make(s,m),d-1,-bt,-a);const v=-x.v;if(v>a){a=v;pv=[m].concat(x.pv)}if(a>=bt)break}
+  return{v:a,pv}}
 // ENGINE-END
-if(typeof window==='undefined'){module.exports={parseFEN,legal,make,inCheck,pseudo,sq,nm,best,START};}
+if(typeof window==='undefined'){module.exports={parseFEN,legal,make,inCheck,pseudo,sq,nm,best,START,attackers,searchPV,kingPos};}
 else{
 const GL={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'};
 const NAME={K:'Rey',Q:'Reina',R:'Torre',B:'Alfil',N:'Caballo',P:'Peón'};
@@ -273,14 +298,24 @@ const RANKS=[[0,'Peón novato'],[15,'Caballero valiente'],[40,'Torre de hierro']
 const STAR=c=>`<svg viewBox="0 0 24 24"><use href="#st" fill="${c}"/></svg>`;
 let P={gems:0,done:{},all:false,snd:true,voz:false};
 try{const s=JSON.parse(localStorage.getItem('ajedrez-aventura')||'null');if(s)P=Object.assign(P,s)}catch(e){}
+if(P.vol==null)P.vol=P.snd===false?0:2;
 const save=()=>{try{localStorage.setItem('ajedrez-aventura',JSON.stringify(P))}catch(e){}};
-let AC;const initAudio=()=>{try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}};
-function tone(f,d,t='square',v=.05,dl=0){if(!AC||!P.snd)return;try{const o=AC.createOscillator(),gn=AC.createGain(),s=AC.currentTime+dl;o.type=t;o.frequency.value=f;gn.gain.setValueAtTime(v,s);gn.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(gn);gn.connect(AC.destination);o.start(s);o.stop(s+d)}catch(e){}}
-const SND={tap:()=>tone(520,.06,'square',.03),move:()=>tone(330,.1,'triangle',.12),cap:()=>{tone(220,.14,'sawtooth',.05);tone(160,.14,'square',.04,.05)},star:()=>{tone(880,.08);tone(1320,.14,'square',.05,.08)},bad:()=>tone(140,.28,'sawtooth',.05),win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.18,'square',.05,i*.12))};
+const VOLS=[0,.6,1],VN=['Sonido: no','Sonido: medio','Sonido: alto'];
+let AC,MG;const initAudio=()=>{try{if(!AC){AC=new(window.AudioContext||window.webkitAudioContext)();const cp=AC.createDynamicsCompressor();cp.threshold.value=-14;cp.ratio.value=5;MG=AC.createGain();MG.gain.value=VOLS[P.vol];MG.connect(cp);cp.connect(AC.destination)}if(AC.state==='suspended')AC.resume()}catch(e){}};
+function tone(f,d,t='square',v=.5,dl=0,f2){if(!AC||!P.vol)return;try{const o=AC.createOscillator(),gn=AC.createGain(),s=AC.currentTime+dl;o.type=t;o.frequency.setValueAtTime(f,s);if(f2)o.frequency.exponentialRampToValueAtTime(f2,s+d);
+  gn.gain.setValueAtTime(.0001,s);gn.gain.linearRampToValueAtTime(v,s+.012);gn.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(gn);gn.connect(MG);o.start(s);o.stop(s+d+.02)}catch(e){}}
+const SND={tap:()=>tone(700,.09,'square',.35),
+move:()=>{tone(300,.16,'triangle',.95,0,150);tone(1100,.04,'square',.3)},
+cap:()=>{tone(520,.3,'sawtooth',.55,0,90);tone(160,.28,'square',.45,.06)},
+star:()=>[880,1175,1568].forEach((f,i)=>tone(f,.16,'square',.42,i*.08)),
+bad:()=>{tone(300,.4,'sawtooth',.55,0,110)},
+check:()=>{tone(988,.14,'square',.55);tone(988,.18,'square',.55,.18)},
+hint:()=>{tone(1320,.12,'sine',.7);tone(1760,.2,'sine',.6,.11)},
+win:()=>[[523,0],[659,.13],[784,.26],[1047,.39],[784,.6],[1047,.72]].forEach(([f,t],i)=>{tone(f,i>4?.5:.16,'square',.45,t);tone(f/2,i>4?.5:.16,'triangle',.5,t)})};
 const snd=k=>SND[k]&&SND[k]();
-function say(t){$('#bubble').textContent=t;if(!P.voz)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='es-ES';const v=speechSynthesis.getVoices().find(v=>/^es/i.test(v.lang));if(v)u.voice=v;u.rate=.95;u.pitch=1.15;speechSynthesis.speak(u)}catch(e){}}
+function say(t){$('#bubble').textContent=t;if(!P.voz)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='es-ES';const v=speechSynthesis.getVoices().find(v=>/^es/i.test(v.lang));if(v)u.voice=v;u.rate=.95;u.volume=1;u.pitch=1.15;speechSynthesis.speak(u)}catch(e){}}
 function hud(){$('#gems').textContent=P.gems;let r=RANKS[0][1];for(const[n,t]of RANKS)if(P.gems>=n)r=t;$('#rank').textContent=r;
-  $('#tSnd').setAttribute('aria-pressed',P.snd);$('#tVoz').setAttribute('aria-pressed',P.voz)}
+  $('#tSnd').setAttribute('aria-pressed',P.vol>0);$('#tSnd').textContent=VN[P.vol];if(MG)MG.gain.value=VOLS[P.vol];$('#tVoz').setAttribute('aria-pressed',P.voz)}
 const unlocked=i=>P.all||i===0||P.done[MIS[i-1].id]!=null;
 function showMap(){G.mode=null;G.busy=false;$('#play').hidden=true;$('#map').hidden=false;
   let nx=MIS.findIndex((m,i)=>unlocked(i)&&P.done[m.id]==null);
@@ -296,7 +331,7 @@ const G={mode:null,s:null,sel:null,tg:[],last:null,stars:new Set,busy:false,hint
 function board(show){$('#bfr').hidden=!show;$('#quiz').hidden=show}
 $('#rk').innerHTML=[8,7,6,5,4,3,2,1].map(n=>`<span>${n}</span>`).join('');
 $('#fl').innerHTML=[...FILES].map(f=>`<span>${f}</span>`).join('');
-function draw(){const B=G.s.b;let h='';const ck=G.mode==='game'||G.mode==='puz'?['w','b'].map(c=>inCheck(G.s,c)?kingPos(G.s.b,c):null).filter(Boolean):[];
+function draw(fx){const B=G.s.b;let h='';const ck=G.mode==='game'||G.mode==='puz'?['w','b'].map(c=>inCheck(G.s,c)?kingPos(G.s.b,c):null).filter(Boolean):[];
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=B[r][c],n=nm(r,c),t=G.tg.find(m=>m.tr===r&&m.tc===c);
     let cl='sq '+((r+c)%2?'d':'l');
     if(G.last&&((G.last[0]===r&&G.last[1]===c)||(G.last[2]===r&&G.last[3]===c)))cl+=' last';
@@ -306,19 +341,30 @@ function draw(){const B=G.s.b;let h='';const ck=G.mode==='game'||G.mode==='puz'?
     if(G.glow===n)cl+=' glow';
     if(G.flash&&G.flash[0]===n)cl+=' '+G.flash[1];
     if(t)cl+=p?' cap':' dot';
-    h+=`<button class="${cl}" data-r="${r}" data-c="${c}" aria-label="${n}${p?' '+(isW(p)?'':'enemigo ')+NAME[p.toUpperCase()]:''}">${G.stars.has(n)?`<svg class="star" viewBox="0 0 24 24"><use href="#st" fill="#ffd23f"/></svg>`:''}${p?`<span class="pc ${isW(p)?'w':'b'}">${g(p.toUpperCase())}</span>`:''}</button>`}
-  $('#board').innerHTML=h}
+    h+=`<button class="${cl}" style="--i:${7-r}" data-r="${r}" data-c="${c}" aria-label="${n}${p?' '+(isW(p)?'':'enemigo ')+NAME[p.toUpperCase()]:''}">${G.stars.has(n)?`<svg class="star" viewBox="0 0 24 24"><use href="#st" fill="#ffd23f"/></svg>`:''}${p?`<span class="pc ${isW(p)?'w':'b'}">${g(p.toUpperCase())}</span>`:''}</button>`}
+  const bd=$('#board');bd.className='board'+(fx?' fade':'');bd.innerHTML=h}
 $('#board').addEventListener('click',e=>{const b=e.target.closest('.sq');if(b)onSq(+b.dataset.r,+b.dataset.c)});
 function onSq(r,c){initAudio();
   if(G.mode==='coords')return coordTap(r,c);
   if(G.busy||!G.s)return;
-  const mv=G.tg.find(m=>m.tr===r&&m.tc===c);if(mv){G.hint=[];return doMove(mv)}
+  const mv=G.tg.find(m=>m.tr===r&&m.tc===c);if(mv){G.hint=[];G.busy=true;return anim(mv,()=>{G.busy=false;doMove(mv)})}
   const p=G.s.b[r][c];
   if(p&&isW(p)){G.sel=[r,c];G.tg=movesFrom(r,c);snd('tap');const t=p.toUpperCase();
     if(G.mode==='game'&&!G.tips[t]){G.tips[t]=1;say(TIP[t])}
     if(!G.tg.length&&G.mode!=='stars')say(`${EL[t]==='la'?'La':'El'} ${NAME[t].toLowerCase()} no puede moverse ahora. Prueba con otra pieza.`)}
   else{G.sel=null;G.tg=[]}
   draw()}
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+function anim(m,cb){if(RM){cb();return}
+  const B=$('#board'),el=(y,x)=>B.querySelector(`.sq[data-r="${y}"][data-c="${x}"]`);
+  const slide=(fr,fc,tr,tc)=>{const f=el(fr,fc),t=el(tr,tc),pc=f&&f.querySelector('.pc');if(!pc||!t)return;const a=f.getBoundingClientRect(),b=t.getBoundingClientRect();
+    f.style.overflow='visible';f.style.zIndex=6;pc.style.transition='transform .34s cubic-bezier(.3,.7,.4,1)';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{pc.style.transform=`translate(${b.left-a.left}px,${b.top-a.top}px) scale(1.15)`}))};
+  const fade=(y,x)=>{const q=el(y,x),pc=q&&q.querySelector('.pc');if(pc){pc.style.transition='opacity .3s,transform .3s';pc.style.opacity=0;pc.style.transform='scale(.3) rotate(40deg)'}};
+  if(m.cap)fade(m.epc?m.fr:m.tr,m.tc);
+  slide(m.fr,m.fc,m.tr,m.tc);
+  if(m.castle)slide(m.tr,m.tc===6?7:0,m.tr,m.tc===6?5:3);
+  setTimeout(cb,370)}
 function movesFrom(r,c){return(G.mode==='stars'?pseudo(G.s):legal(G.s)).filter(m=>m.fr===r&&m.fc===c)}
 function ctrls(list){$('#ctrls').innerHTML=list.map((b,i)=>`<button class="btn ${b.c||''}" data-k="${i}">${b.t}</button>`).join('');
   $('#ctrls').onclick=e=>{const b=e.target.closest('[data-k]');if(b){initAudio();list[+b.dataset.k].fn()}}}
@@ -337,8 +383,8 @@ function loadLevel(){const m=MIS[G.mi],lv=m.lv[G.li];G.mode='stars';board(true);
   const b=[...Array(8)].map(()=>Array(8).fill(null));const[y,x]=sq(lv.from);b[y][x]=m.piece;(lv.foes||[]).forEach(f=>{const[a,c]=sq(f);b[a][c]='p'});
   G.s={b,turn:'w',cs:'',ep:null};G.stars=new Set(lv.stars);G.moves=0;G.par=par(Object.assign({piece:m.piece},lv));G.last=null;G.sel=[y,x];G.tg=movesFrom(y,x);
   $('#pstep').textContent=`Nivel ${G.li+1} de ${m.lv.length}`;
-  say(G.li===0?TIP[m.piece]+' Recoge todas las estrellas.':lv.foes?'Come los peones negros (en diagonal) y recoge la estrella.':`¡Nivel ${G.li+1}! Recoge las ${lv.stars.length} estrellas con pocas movidas.`);
-  infoStars();ctrls([{t:'Reiniciar',c:'w',fn:loadLevel}]);draw()}
+  draw(true);say(G.li===0?TIP[m.piece]+' Recoge todas las estrellas.':lv.foes?'Come los peones negros (en diagonal) y recoge la estrella.':`¡Nivel ${G.li+1}! Recoge las ${lv.stars.length} estrellas con pocas movidas.`);
+  infoStars();ctrls([{t:'Reiniciar',c:'w',fn:loadLevel}])}
 function infoStars(){const f=G.s.b.flat().filter(p=>p&&!isW(p)).length;
   setInfo(`<div class="row"><span>Movidas</span><b class="big" style="font-size:40px">${G.moves}</b></div>
   <div class="row"><span>Reto de 3 estrellas</span><b>${G.par} movidas o menos</b></div>
@@ -389,60 +435,102 @@ function showQ(){const q=QZ[G.qi];$('#pstep').textContent=`Pregunta ${G.qi+1} de
     else{b.classList.add('wrong');snd('bad');G.err++;say('Casi. Intenta otra vez.')}}}
 function quizEnd(){const s=G.err<=1?3:G.err<=3?2:1;addGems(s);snd('win');modal('¡Eres un matemático del ajedrez!',s,`+${s} gemas`,[{t:'Repetir',c:'w',fn:startQuiz},{t:'Volver al mapa',c:'g',fn:()=>finishMission(s)}])}
 /* ---------- puzzles ---------- */
+const pname=t=>NAME[t].toLowerCase();
+const lst=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' y '+a[a.length-1];
+function explainMate(s,who,mine){const lc=s.turn,win=lc==='w'?'b':'w',k=kingPos(s.b,lc),atk=attackers(s.b,k[0],k[1],win);
+  const pn=([y,x])=>{const t=s.b[y][x].toUpperCase();return mine?`tu ${pname(t)} en ${nm(y,x)}`:`${EL[t]} ${pname(t)} de Robi en ${nm(y,x)}`};
+  const b2=s.b.map(r=>r.slice());b2[k[0]][k[1]]=null;const own=[],g={};
+  for(const[dr,dc]of D.K){const y=k[0]+dr,x=k[1]+dc;if(!inb(y,x))continue;const q=s.b[y][x];
+    if(q&&col(q)===lc){own.push(nm(y,x));continue}
+    const a=attackers(b2,y,x,win);if(a.length){const key=a[0].join();(g[key]=g[key]||{a:a[0],sq:[]}).sq.push(nm(y,x))}}
+  let t=`${who} en ${nm(k[0],k[1])} está atacado por ${lst(atk.map(pn))}. `;
+  const parts=Object.values(g).map(o=>`${lst(o.sq)} ${o.sq.length>1?'están vigiladas':'está vigilada'} por ${pn(o.a)}`);
+  if(own.length)parts.push(`${lst(own)} ${own.length>1?'están ocupadas':'está ocupada'} por sus propias piezas`);
+  if(parts.length)t+=`No tiene a dónde escapar: ${parts.join('; ')}. `;
+  t+=atk.length>1?'Es un jaque doble: nadie puede tapar ni comerse dos piezas a la vez.':'Y ninguna pieza puede comerse al atacante ni ponerse en medio. ¡Por eso es jaque mate!';
+  return{t,atk}}
 function loadPuz(){const m=MIS[G.mi];if(G.li===0)G.err=0;G.mode='puz';board(true);G.s=parseFEN(m.list[G.li]);G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.stars=new Set;
   $('#pstep').textContent=`Reto ${G.li+1} de ${m.list.length}`;
   say(m.goal==='check'?(G.li===0?'Jaque es cuando atacas al rey. Juegas con las blancas: ¡haz jaque al rey negro!':'Busca la jugada que hace jaque.'):(G.li===0?'Jaque mate es cuando el rey está atacado y no tiene escape. ¡Ahí se gana! Busca el jaque mate en una jugada.':'¡Encuentra el jaque mate!'));
   setInfo(`<div class="row"><span>Juegas con</span><b>Blancas</b></div><div class="row"><span>Meta</span><b>${m.goal==='check'?'Hacer jaque':'Jaque mate en 1'}</b></div><div class="row"><span>Errores</span><b>${G.err}</b></div>`);
-  ctrls([{t:'Pista',c:'w',fn:()=>{const mv=legal(G.s).find(x=>goalOk(make(G.s,x)));if(mv){G.hint=[[mv.fr,mv.fc]];say(`Pista: usa ${EL[G.s.b[mv.fr][mv.fc]]} ${NAME[G.s.b[mv.fr][mv.fc]].toLowerCase()} que está brillando.`);draw()}}}]);draw()}
+  ctrls([{t:'Pista',c:'w',fn:()=>{if(G.busy)return;const mv=legal(G.s).find(x=>goalOk(make(G.s,x)));if(mv){snd('hint');const t=G.s.b[mv.fr][mv.fc];G.hint=[[mv.fr,mv.fc]];say(`Pista: usa ${EL[t]} ${pname(t)} que está brillando.`);draw()}}}]);draw(true)}
 function goalOk(ns){return MIS[G.mi].goal==='check'?inCheck(ns,'b'):inCheck(ns,'b')&&!legal(ns).length}
-function mvPuz(m){const prev=G.s,ns=make(G.s,m);G.s=ns;G.sel=null;G.tg=[];G.last=[m.fr,m.fc,m.tr,m.tc];G.busy=true;draw();
+function nextPuz(){const mt=MIS[G.mi];G.li++;if(G.li<mt.list.length)loadPuz();else{const s=G.err<=1?3:G.err<=3?2:1;modal(mt.goal==='check'?'¡Maestro del jaque!':'¡Maestro del mate!',s,`Tuviste ${G.err} error${G.err===1?'':'es'}.`,[{t:'Repetir',c:'w',fn:()=>{G.li=0;loadPuz()}},{t:'Volver al mapa',c:'g',fn:()=>finishMission(s)}])}}
+function mvPuz(m){const prev=G.s,ns=make(G.s,m);G.s=ns;G.sel=null;G.tg=[];G.last=[m.fr,m.fc,m.tr,m.tc];G.busy=true;
   const mt=MIS[G.mi];
-  if(goalOk(ns)){snd('win');say(mt.goal==='check'?'¡JAQUE! ¡Muy bien!':'¡JAQUE MATE! ¡El rey no puede escapar!');addGems(1);
-    setTimeout(()=>{G.li++;if(G.li<mt.list.length)loadPuz();else{const s=G.err<=1?3:G.err<=3?2:1;modal(mt.goal==='check'?'¡Maestro del jaque!':'¡Maestro del mate!',s,`Tuviste ${G.err} error${G.err===1?'':'es'}.`,[{t:'Repetir',c:'w',fn:()=>{G.li=0;loadPuz()}},{t:'Volver al mapa',c:'g',fn:()=>finishMission(s)}])}},1500)}
-  else{snd('bad');G.err++;say(mt.goal==='mate'&&inCheck(ns,'b')?'Es jaque, pero el rey puede escapar. Busca otra jugada.':'Esa jugada no ataca al rey. ¡Intenta otra vez!');
-    setTimeout(()=>{G.s=prev;G.last=null;G.busy=false;draw()},1100)}}
+  if(goalOk(ns)){addGems(1);
+    if(mt.goal==='mate'){snd('win');const ex=explainMate(ns,'El rey negro',true);G.hint=ex.atk;draw();say('¡JAQUE MATE! '+ex.t);ctrls([{t:'Siguiente reto',c:'g',fn:nextPuz}])}
+    else{snd('check');const a=attackers(ns.b,...kingPos(ns.b,'b'),'w').map(([y,x])=>`tu ${pname(ns.b[y][x].toUpperCase())} en ${nm(y,x)}`);G.hint=attackers(ns.b,...kingPos(ns.b,'b'),'w');draw();say(`¡JAQUE! ${lst(a)} ataca al rey negro.`);setTimeout(nextPuz,2200)}}
+  else{draw();snd('bad');G.err++;say(mt.goal==='mate'&&inCheck(ns,'b')?'Es jaque, pero el rey puede escapar. Busca otra jugada.':'Esa jugada no ataca al rey. ¡Intenta otra vez!');
+    setTimeout(()=>{G.s=prev;G.last=null;G.busy=false;draw()},1300)}}
 /* ---------- partida ---------- */
 const LV=[{n:'Fácil',d:1,z:220,gm:5,st:1},{n:'Medio',d:2,z:40,gm:10,st:2},{n:'Difícil',d:3,z:12,gm:20,st:3}];
-G.lvl=0;
-function startGame(){G.mode='game';board(true);G.s=parseFEN(START);G.hist=[];G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.tips={};G.stars=new Set;G.over=false;
-  $('#pstep').textContent=LV[G.lvl].n;say('¡A jugar! Tú juegas con las blancas y empiezas. Toca una pieza para ver a dónde puede ir.');gameUI();draw()}
+const MAXH=5;G.lvl=0;
+function startGame(){G.mode='game';board(true);G.s=parseFEN(START);G.hist=[];G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.tips={};G.stars=new Set;G.over=false;G.hl=MAXH;
+  $('#pstep').textContent=LV[G.lvl].n;say(`¡A jugar! Tú juegas con las blancas y empiezas. Tienes ${MAXH} pistas en esta partida: úsalas cuando de verdad no sepas qué hacer.`);gameUI();draw(true)}
 function mat(b,w){return b.flat().filter(p=>p&&isW(p)===w).reduce((a,p)=>a+PTS[p.toUpperCase()],0)}
 function gameUI(){const a=mat(G.s.b,true),r=mat(G.s.b,false);
   setInfo(`<div class="row"><span>Nivel de Robi</span><span class="lvl">${LV.map((l,i)=>`<button class="tog" data-l="${i}" aria-pressed="${i===G.lvl}">${l.n}</button>`).join('')}</span></div>
   <div class="mat"><b>Tú ${a}</b><div class="bar"><i style="width:${a+r?a/(a+r)*100:50}%"></i></div><b>${r} Robi</b></div>
-  <div class="row"><span>${a>r?`¡Vas ganando por ${a-r}!`:a<r?`Robi va ganando por ${r-a}`:'Van empatados en puntos'}</span></div>`);
+  <div class="row"><span>${a>r?`¡Vas ganando por ${a-r}!`:a<r?`Robi va ganando por ${r-a}`:'Van empatados en puntos'}</span><span>Pistas: <b>${G.hl} de ${MAXH}</b></span></div>`);
   $('#info').onclick=e=>{const b=e.target.closest('[data-l]');if(b){G.lvl=+b.dataset.l;startGame()}};
-  ctrls([{t:'Pista',c:'w',fn:hintGame},{t:'Deshacer',c:'w',fn:undo},{t:'Nueva partida',c:'p',fn:startGame}])}
-function hintGame(){if(G.busy||G.over)return;const m=best(G.s,2,0);if(!m)return;const t=G.s.b[m.fr][m.fc].toUpperCase();G.hint=[[m.fr,m.fc],[m.tr,m.tc]];G.sel=null;G.tg=[];
-  say(`Pista: mueve ${EL[t]} ${NAME[t].toLowerCase()} de ${nm(m.fr,m.fc)} a ${nm(m.tr,m.tc)}.`);draw()}
+  ctrls([{t:G.hl?`Pista (${G.hl})`:'Sin pistas',c:'w',fn:hintGame},{t:'Deshacer',c:'w',fn:undo},{t:'Nueva partida',c:'p',fn:startGame}]);
+  if(!G.hl)$('#ctrls [data-k="0"]').disabled=true}
+function mdesc(s,m){const t=s.b[m.fr][m.fc].toUpperCase();if(m.castle)return 'el rey para enrocar';
+  return `${EL[t]} ${pname(t)} de ${nm(m.fr,m.fc)} a ${nm(m.tr,m.tc)}${m.cap?` (se come ${EL[m.cap.toUpperCase()]} ${pname(m.cap.toUpperCase())})`:''}`}
+function why(s,m){const t=s.b[m.fr][m.fc].toUpperCase(),ns=make(s,m),R=[],nt=(m.promo||t).toUpperCase();
+  if(inCheck(ns,'b')&&!legal(ns).length)return '¡es JAQUE MATE y ganas la partida!';
+  if(m.cap){const c=m.cap.toUpperCase();R.push(attacked(ns.b,m.tr,m.tc,'b')?`te comes ${EL[c]} ${pname(c)} (+${PTS[c]})`:`te comes ${EL[c]} ${pname(c)} gratis (+${PTS[c]})`)}
+  if(m.promo)R.push('tu peón se convierte en reina');
+  if(m.castle)R.push('tu rey queda escondido y protegido, y la torre sale a jugar');
+  if(!m.cap&&t!=='K'&&attacked(s.b,m.fr,m.fc,'b')&&!attacked(s.b,m.fr,m.fc,'w'))R.push(`salvas ${EL[t]} ${pname(t)}, que estaba en peligro`);
+  if(inCheck(ns,'b'))R.push('le haces jaque al rey de Robi');
+  const th=pseudo({b:ns.b,turn:'w',cs:'',ep:null}).filter(x=>x.fr===m.tr&&x.fc===m.tc&&x.cap&&x.cap!=='k'&&(!attacked(ns.b,x.tr,x.tc,'b')||PTS[x.cap.toUpperCase()]>PTS[nt]));
+  if(th.length){const c=th[0].cap.toUpperCase();R.push(`amenazas ${EL[c]} ${pname(c)} de Robi en ${nm(th[0].tr,th[0].tc)}`)}
+  if(!R.length){if((t==='N'||t==='B')&&m.fr===7)R.push('sacas una pieza a jugar (eso se llama desarrollo)');else if(t==='P'&&(m.tc===3||m.tc===4))R.push('tu peón controla el centro del tablero');else if(t==='P')R.push('avanzas un peón y ganas espacio');else R.push(`${EL[t]} ${pname(t)} queda en una casilla más activa`)}
+  return lst(R)}
+function tipFase(){const n=G.hist.length,tot=mat(G.s.b,true)+mat(G.s.b,false);
+  if(n<8)return['Estrategia de apertura: peones al centro, saca caballos y alfiles, y enroca pronto.','Estrategia: no saques la reina muy temprano, porque Robi la puede perseguir.'][n%2];
+  if(tot>40)return 'Estrategia: antes de cada jugada revisa tres cosas: ¿puedo hacer jaque?, ¿puedo comer algo?, ¿Robi amenaza alguna pieza mía?';
+  return 'Estrategia de final: avanza tus peones para coronar y usa tu rey, que ahora es fuerte.'}
+function hintGame(){if(G.busy||G.over)return;
+  if(G.hl<=0){snd('bad');say(`Ya usaste tus ${MAXH} pistas en esta partida. ¡Ahora confía en ti!`);return}
+  const pv=searchPV(G.s,4,-1e6,1e6).pv,m=pv[0];if(!m)return;G.hl--;snd('hint');
+  const st=[];let s=G.s;for(const x of pv.slice(0,3)){st.push([s,x]);s=make(s,x)}
+  let msg=`Pista ${MAXH-G.hl} de ${MAXH}: mueve ${mdesc(G.s,m)}, porque ${why(G.s,m)}.`;
+  if(st[1])msg+=` Plan: si Robi mueve ${mdesc(...st[1])}${st[2]?`, tú sigues con ${mdesc(...st[2])}`:''}.`;
+  msg+=' '+tipFase();
+  G.hint=[[m.fr,m.fc],[m.tr,m.tc]];G.sel=null;G.tg=[];say(msg);gameUI();draw()}
 function undo(){if(G.busy||!G.hist.length)return;G.s=G.hist.pop();G.over=false;G.last=null;G.sel=null;G.tg=[];G.hint=[];say('Listo, deshicimos la jugada. ¡Piensa con calma!');gameUI();draw()}
 function mvGame(m){if(G.over)return;G.hist.push(G.s);const mover=G.s.b[m.fr][m.fc].toUpperCase();const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.sel=null;G.tg=[];
   let msg='';
-  if(m.cap){const t=m.cap.toUpperCase();msg=`¡Te comiste ${EL[t]} ${NAME[t].toLowerCase()} de Robi! +${PTS[t]} punto${PTS[t]>1?'s':''}.`;snd('cap')}else snd('move');
+  if(m.cap){const t=m.cap.toUpperCase();msg=`¡Te comiste ${EL[t]} ${pname(t)} de Robi! +${PTS[t]} punto${PTS[t]>1?'s':''}.`;snd('cap')}else snd('move');
   if(m.castle)msg='¡Enroque! Tu rey quedó protegido.';
   if(m.promo)msg='¡Tu peón llegó al final y se convirtió en reina!';
-  if(inCheck(ns,'b'))msg+=' ¡Jaque!';
+  if(inCheck(ns,'b')){msg+=' ¡Jaque!';setTimeout(()=>snd('check'),150)}
   const pt=(m.promo||mover).toUpperCase();
-  if(pt!=='K'&&attacked(ns.b,m.tr,m.tc,'b')&&!attacked(ns.b,m.tr,m.tc,'w'))msg+=` Ojo: tu ${NAME[pt].toLowerCase()} en ${nm(m.tr,m.tc)} se puede perder.`;
+  if(pt!=='K'&&attacked(ns.b,m.tr,m.tc,'b')&&!attacked(ns.b,m.tr,m.tc,'w'))msg+=` Ojo: tu ${pname(pt)} en ${nm(m.tr,m.tc)} se puede perder.`;
   if(msg)say(msg.trim());
   gameUI();draw();if(endCheck())return;
   G.busy=true;$('#pstep').textContent='Robi piensa…';
-  setTimeout(robot,350)}
+  setTimeout(robot,500)}
 function robot(){const L=LV[G.lvl];const m=best(G.s,L.d,L.z);if(!m){G.busy=false;return}
-  const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.busy=false;$('#pstep').textContent=L.n;
-  let msg='';
-  if(m.cap){const t=m.cap.toUpperCase();msg=`Robi se comió tu ${NAME[t].toLowerCase()}.`;snd('cap')}else snd('move');
-  if(inCheck(ns,'w'))msg+=' ¡Estás en jaque! Protege a tu rey: muévelo, tapa el ataque o come la pieza que ataca.';
-  if(msg)say(msg.trim());
-  gameUI();draw();endCheck()}
+  G.sel=[m.fr,m.fc];G.hint=[];draw();
+  setTimeout(()=>anim(m,()=>{const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.sel=null;G.busy=false;$('#pstep').textContent=L.n;
+    let msg='';
+    if(m.cap){const t=m.cap.toUpperCase();msg=`Robi se comió tu ${pname(t)}.`;snd('cap')}else snd('move');
+    if(inCheck(ns,'w')){msg+=' ¡Estás en jaque! Protege a tu rey: muévelo, tapa el ataque o come la pieza que ataca.';setTimeout(()=>snd('check'),150)}
+    if(msg)say(msg.trim());
+    gameUI();draw();endCheck()}),450)}
 function endCheck(){const ms=legal(G.s);const only=G.s.b.flat().filter(Boolean).length===2;
   if(ms.length&&!only)return false;G.over=true;G.busy=false;
   const L=LV[G.lvl];
   if(!only&&inCheck(G.s,G.s.turn)){
-    if(G.s.turn==='b'){snd('win');addGems(L.gm);P.done.duel=Math.max(P.done.duel||0,L.st);save();say('¡JAQUE MATE! ¡Le ganaste a Robi!');
-      setTimeout(()=>modal('¡Le ganaste a Robi!',L.st,`Nivel ${L.n}. +${L.gm} gemas${G.lvl<2?'. ¿Probamos el siguiente nivel?':''}`,[{t:'Otra partida',c:'w',fn:startGame},G.lvl<2?{t:'Subir de nivel',c:'g',fn:()=>{G.lvl++;startGame()}}:{t:'Volver al mapa',c:'g',fn:showMap}]),900)}
-    else{snd('bad');say('Jaque mate de Robi. ¡No pasa nada! Así se aprende.');setTimeout(()=>modal('Robi ganó esta vez',0,'Usa «Pista» cuando no sepas qué hacer y fíjate en los avisos de peligro.',[{t:'Deshacer',c:'w',fn:undo},{t:'Revancha',c:'g',fn:startGame}]),900)}}
-  else{addGems(2);say('¡Tablas! Nadie gana. +2 gemas.');setTimeout(()=>modal('¡Tablas!',1,only?'Solo quedaron los dos reyes.':'El rey no tiene jugadas pero no está en jaque: eso es «ahogado». +2 gemas',[{t:'Otra partida',c:'g',fn:startGame}]),900)}
+    if(G.s.turn==='b'){const ex=explainMate(G.s,'El rey de Robi',true);G.hint=ex.atk;draw();snd('win');addGems(L.gm);P.done.duel=Math.max(P.done.duel||0,L.st);save();say('¡JAQUE MATE! '+ex.t);
+      setTimeout(()=>modal('¡Le ganaste a Robi!',L.st,`<b>¿Por qué es jaque mate?</b> ${ex.t}<br><br>Nivel ${L.n}. +${L.gm} gemas${G.lvl<2?'. ¿Probamos el siguiente nivel?':''}`,[{t:'Otra partida',c:'w',fn:startGame},G.lvl<2?{t:'Subir de nivel',c:'g',fn:()=>{G.lvl++;startGame()}}:{t:'Volver al mapa',c:'g',fn:showMap}]),3500)}
+    else{const ex=explainMate(G.s,'Tu rey',false);G.hint=ex.atk;draw();snd('bad');say('Jaque mate de Robi. '+ex.t);
+      setTimeout(()=>modal('Robi ganó esta vez',0,`<b>¿Qué pasó?</b> ${ex.t}<br><br>La próxima vez deja casillas libres alrededor de tu rey y fíjate en qué piezas de Robi lo apuntan. Toca «Deshacer» para volver atrás e intentar otra jugada.`,[{t:'Deshacer',c:'w',fn:undo},{t:'Revancha',c:'g',fn:startGame}]),3500)}}
+  else{addGems(2);say('¡Tablas! Nadie gana. +2 gemas.');setTimeout(()=>modal('¡Tablas!',1,only?'Solo quedaron los dos reyes: ninguno puede dar jaque mate. +2 gemas':'El rey no tiene jugadas pero no está en jaque: eso es «ahogado». +2 gemas',[{t:'Otra partida',c:'g',fn:startGame}]),1500)}
   return true}
 /* ---------- modal ---------- */
 function modal(t,s,txt,bt){$('#md').innerHTML=`<h2>${t}</h2>${s?`<div class="st">${[1,2,3].map(k=>STAR(k<=s?'#ffd23f':'#dfe3f5')).join('')}</div>`:''}<p>${txt}</p><div class="bt">${bt.map((b,i)=>`<button class="btn ${b.c}" data-b="${i}">${b.t}</button>`).join('')}</div>`;
@@ -452,10 +540,10 @@ function modal(t,s,txt,bt){$('#md').innerHTML=`<h2>${t}</h2>${s?`<div class="st"
 /* ---------- eventos ---------- */
 $('#tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(!t)return;initAudio();const i=+t.dataset.i;if(!unlocked(i)){snd('bad');$('#mapMsg').textContent='Esa misión está cerrada. Termina la anterior para abrirla.';return}snd('tap');play(i)});
 $('#back').onclick=()=>{try{speechSynthesis.cancel()}catch(e){}showMap()};
-$('#tSnd').onclick=()=>{P.snd=!P.snd;save();hud();initAudio();snd('tap')};
+$('#tSnd').onclick=()=>{initAudio();P.vol=(P.vol+2)%3;save();hud();snd('move')};
 $('#tVoz').onclick=()=>{P.voz=!P.voz;save();hud();if(P.voz)say($('#play').hidden?'¡Hola Jacobo! Ahora puedo hablar.':$('#bubble').textContent);else try{speechSynthesis.cancel()}catch(e){}};
 $('#unlock').onclick=()=>{P.all=true;save();showMap()};
-let rc=0;$('#reset').onclick=e=>{if(++rc<2){e.target.textContent='Toca otra vez para confirmar';return}P={gems:0,done:{},all:false,snd:P.snd,voz:P.voz};rc=0;e.target.textContent='Borrar progreso';save();showMap()};
+let rc=0;$('#reset').onclick=e=>{if(++rc<2){e.target.textContent='Toca otra vez para confirmar';return}P={gems:0,done:{},all:false,vol:P.vol,voz:P.voz};rc=0;e.target.textContent='Borrar progreso';save();showMap()};
 showMap();
 let dp=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('#tInst').hidden=false});
 $('#tInst').onclick=async()=>{if(!dp)return;dp.prompt();try{await dp.userChoice}catch(e){}dp=null;$('#tInst').hidden=true};
