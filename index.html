@@ -325,7 +325,31 @@ check:()=>{tone(988,.14,'square',.55);tone(988,.18,'square',.55,.18)},
 hint:()=>{tone(1320,.12,'sine',.7);tone(1760,.2,'sine',.6,.11)},
 win:()=>[[523,0],[659,.13],[784,.26],[1047,.39],[784,.6],[1047,.72]].forEach(([f,t],i)=>{tone(f,i>4?.5:.16,'square',.45,t);tone(f/2,i>4?.5:.16,'triangle',.5,t)})};
 const snd=k=>SND[k]&&SND[k]();
-function say(t){$('#bubble').textContent=t;if(!P.voz)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='es-ES';const v=speechSynthesis.getVoices().find(v=>/^es/i.test(v.lang));if(v)u.voice=v;u.rate=.95;u.volume=1;u.pitch=1.15;speechSynthesis.speak(u)}catch(e){}}
+let VOICES=[];
+function scoreV(v){const n=v.name;let s=0;
+  if(/natural|neural|online/i.test(n))s+=100;if(/premium|enhanced|mejorad/i.test(n))s+=80;if(/google/i.test(n))s+=50;
+  if(/es[-_]CO/i.test(v.lang))s+=12;else if(/es[-_](MX|US|419)/i.test(v.lang))s+=8;else if(/es[-_]ES/i.test(v.lang))s+=4;
+  if(!/natural|online/i.test(n)&&/sabina|helena|laura|pablo|raul|desktop/i.test(n))s-=30;return s}
+function loadVoices(){try{VOICES=speechSynthesis.getVoices().filter(v=>/^es/i.test(v.lang)).sort((a,b)=>scoreV(b)-scoreV(a))}catch(e){VOICES=[]}}
+loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){}
+const pickVoice=()=>VOICES.find(v=>v.name===P.vname)||VOICES[0];
+const LET={a:'a',b:'be',c:'ce',d:'de',e:'e',f:'efe',g:'ge',h:'hache'};
+const clean=t=>t.replace(/[«»✓·]/g,' ').replace(/\b([a-h])([1-8])\b/g,(m,l,n)=>LET[l]+' '+n).replace(/\+(\d+)/g,'más $1').replace(/\b[A-ZÁÉÍÓÚÑ]{3,}\b/g,w=>w.toLowerCase());
+function speak(t){try{speechSynthesis.cancel();const v=pickVoice(),nat=v&&scoreV(v)>=50;
+  const parts=(clean(t).match(/[^.!?;:]+[.!?;:]*/g)||[t]).map(s=>s.trim()).filter(s=>s.length>1);
+  for(const s of parts){const u=new SpeechSynthesisUtterance(s);if(v){u.voice=v;u.lang=v.lang}else u.lang='es-CO';u.rate=nat?1.02:.94;u.pitch=nat?1.05:1;u.volume=1;speechSynthesis.speak(u)}}catch(e){}}
+function say(t){$('#bubble').textContent=t;if(P.voz)speak(t)}
+function voiceModal(){loadVoices();const cur=pickVoice();
+  const opts=VOICES.map(v=>`<option value="${v.name.replace(/"/g,'&quot;')}"${cur&&v.name===cur.name?' selected':''}>${scoreV(v)>=50?'★ ':''}${v.name.replace(/ - .*$/,'')} (${v.lang})</option>`).join('');
+  const nat=VOICES.some(v=>scoreV(v)>=100);
+  modal('La voz de Robi',0,VOICES.length?`<label for="vsel"><b>Elige una voz</b> (las que tienen ★ suenan más humanas):</label>
+    <select id="vsel" style="width:100%;min-height:44px;font:700 16px Nunito,system-ui,sans-serif;margin:8px 0;border-radius:10px;padding:6px">${opts}</select>
+    <button class="btn w" id="vtest" style="width:100%">Probar voz</button>
+    ${nat?'':'<br><br><b>Consejo:</b> en este navegador no hay voces naturales. Abre el juego en <b>Microsoft Edge</b>: trae voces muy humanas gratis, como Salomé y Gonzalo (Colombia) o Dalia (México).'}`
+    :'Este navegador no tiene voces en español. Abre el juego en <b>Microsoft Edge</b> o en <b>Google Chrome</b>.',
+    [{t:P.voz?'Apagar voz':'Encender voz',c:'w',fn:()=>{P.voz=!P.voz;save();hud();if(P.voz)say('¡Listo! Ahora puedo hablar contigo.');else try{speechSynthesis.cancel()}catch(e){}}},{t:'Listo',c:'g',fn:()=>{}}]);
+  const sel=$('#vsel');if(sel)sel.onchange=()=>{P.vname=sel.value;save();speak('Hola Jacobo, así suena mi voz.')};
+  const tb=$('#vtest');if(tb)tb.onclick=()=>{if(sel)P.vname=sel.value;save();speak('¡Hola, Jacobo! Soy Robi. Mueve el caballo de g1 a f3 para sacar una pieza a jugar. ¡Muy bien!')}}
 function hud(){$('#gems').textContent=P.gems;let r=RANKS[0][1];for(const[n,t]of RANKS)if(P.gems>=n)r=t;$('#rank').textContent=r;
   $('#tSnd').setAttribute('aria-pressed',P.vol>0);$('#tSnd').textContent=VN[P.vol];if(MG)MG.gain.value=VOLS[P.vol];$('#tVoz').setAttribute('aria-pressed',P.voz)}
 const unlocked=i=>P.all||i===0||P.done[MIS[i-1].id]!=null;
@@ -627,7 +651,7 @@ function modal(t,s,txt,bt){$('#md').innerHTML=`<h2>${t}</h2>${s?`<div class="st"
 $('#tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(!t)return;initAudio();const i=+t.dataset.i;if(!unlocked(i)){snd('bad');$('#mapMsg').textContent='Esa misión está cerrada. Termina la anterior para abrirla.';return}snd('tap');play(i)});
 $('#back').onclick=()=>{try{speechSynthesis.cancel()}catch(e){}showMap()};
 $('#tSnd').onclick=()=>{initAudio();P.vol=(P.vol+2)%3;save();hud();snd('move')};
-$('#tVoz').onclick=()=>{P.voz=!P.voz;save();hud();if(P.voz)say($('#play').hidden?'¡Hola Jacobo! Ahora puedo hablar.':$('#bubble').textContent);else try{speechSynthesis.cancel()}catch(e){}};
+$('#tVoz').onclick=()=>{initAudio();voiceModal()};
 $('#unlock').onclick=()=>{P.all=true;save();showMap()};
 let rc=0;$('#reset').onclick=e=>{if(++rc<2){e.target.textContent='Toca otra vez para confirmar';return}P={gems:0,done:{},all:false,vol:P.vol,voz:P.voz};rc=0;e.target.textContent='Borrar progreso';save();showMap()};
 showMap();
