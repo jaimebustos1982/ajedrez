@@ -9,6 +9,7 @@ Aplicación web instalable (PWA) para que un niño aprenda ajedrez paso a paso, 
 - **Una misión por pieza** (torre, alfil, reina, rey, caballo, peón): recoger estrellas con la menor cantidad de movidas.
 - **¿Cuánto vale?:** sumas y restas con el valor de las piezas.
 - **¡Jaque! y Jaque mate:** retos de una jugada, con pista.
+- **Duelo con Robi (guiado):** panel «Tu turno» con peligros, oportunidades y objetivos de apertura; casillas verdes/rojas al elegir pieza; aviso antes de un error grave; calificación de cada jugada; Robi explica sus movimientos; tres niveles de ayuda (máxima, media, ninguna).
 - **Duelo con Robi:** partida completa contra la computadora en tres niveles. 5 pistas por partida (jugada sugerida, por qué, plan de 3 jugadas y estrategia), deshacer, avisos de piezas en peligro y explicación de cada jaque mate.
 
 ## Cómo instalarla

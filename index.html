@@ -116,6 +116,17 @@ button:focus-visible{outline:4px solid var(--cyan);outline-offset:3px}
 @keyframes drop{0%{transform:translateY(-70%) scale(.3);opacity:0}}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
 .bub b{color:var(--bg)}.md p{text-align:left;line-height:1.45}
+.guide{background:#fff;color:var(--cink);border-radius:16px;padding:14px 16px;display:grid;gap:10px;box-shadow:0 6px 0 #0a1557}
+.guide h3{margin:0;font-size:22px;color:var(--bg)}
+.gi{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;font-size:15px;line-height:1.4;padding:8px 10px;border-radius:10px}
+.gi svg{width:24px;height:24px}.gi.risk{background:#ffe3ec}.gi.opp{background:#e8fbd9}.gi.obj{background:#fff6d4}.gi.robi{background:#e0f6ff}
+.lg{display:flex;flex-wrap:wrap;gap:12px;font-size:13px}.lg span{display:inline-flex;align-items:center;gap:6px}.lg i{width:16px;height:16px;border-radius:4px;display:inline-block}
+.lg .g1{background:#2fb344}.lg .g2{background:#ff2d55}.lg .g3{border:3px dashed #2fb344}
+.sq.dot.good::after{background:rgba(47,179,68,.85)}.sq.dot.bad::after{background:rgba(255,45,85,.9)}
+.sq.cap.bad::after{border-color:#ff8a00}
+.sq.opp::before{content:"";position:absolute;inset:4%;border:1cqw dashed #1f9d36;border-radius:8px;z-index:2}
+.sq.risk::before{content:"";position:absolute;inset:0;background:rgba(255,45,85,.35);animation:pulse 1s infinite}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips span{font-size:13px;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.12)}.chips span.ok{background:var(--lime);color:var(--cink)}
 @media(max-width:820px){.pg{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.hero{grid-template-columns:minmax(0,1fr)}.hero .robi{margin:0 auto}.bub::before{display:none}.bf{grid-template-columns:16px minmax(0,1fr)}.rk,.fl{font-size:15px}.tile{min-height:130px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -154,6 +165,7 @@ button:focus-visible{outline:4px solid var(--cyan);outline-offset:3px}
     </div>
     <aside class="side">
       <div class="coach"><svg class="robi" viewBox="0 0 100 100" aria-hidden="true"><use href="#robi"/></svg><p class="bub" id="bubble" aria-live="polite"></p></div>
+      <div class="guide" id="guide" hidden></div>
       <div class="info" id="info"></div>
       <div class="ctrls" id="ctrls"></div>
     </aside>
@@ -340,17 +352,19 @@ function draw(fx){const B=G.s.b;let h='';const ck=G.mode==='game'||G.mode==='puz
     if(ck.some(k=>k[0]===r&&k[1]===c))cl+=' chk';
     if(G.glow===n)cl+=' glow';
     if(G.flash&&G.flash[0]===n)cl+=' '+G.flash[1];
-    if(t)cl+=p?' cap':' dot';
+    if(t)cl+=p?' cap':' dot';if(t&&t.bad)cl+=' bad';else if(t&&G.mode==='game'&&G.help===2)cl+=' good';
+    if(G.mode==='game'&&G.opp&&G.opp.some(x=>x[0]===r&&x[1]===c))cl+=' opp';if(G.mode==='game'&&G.risk&&G.risk.some(x=>x[0]===r&&x[1]===c))cl+=' risk';
     h+=`<button class="${cl}" style="--i:${7-r}" data-r="${r}" data-c="${c}" aria-label="${n}${p?' '+(isW(p)?'':'enemigo ')+NAME[p.toUpperCase()]:''}">${G.stars.has(n)?`<svg class="star" viewBox="0 0 24 24"><use href="#st" fill="#ffd23f"/></svg>`:''}${p?`<span class="pc ${isW(p)?'w':'b'}">${g(p.toUpperCase())}</span>`:''}</button>`}
   const bd=$('#board');bd.className='board'+(fx?' fade':'');bd.innerHTML=h}
 $('#board').addEventListener('click',e=>{const b=e.target.closest('.sq');if(b)onSq(+b.dataset.r,+b.dataset.c)});
 function onSq(r,c){initAudio();
   if(G.mode==='coords')return coordTap(r,c);
   if(G.busy||!G.s)return;
-  const mv=G.tg.find(m=>m.tr===r&&m.tc===c);if(mv){G.hint=[];G.busy=true;return anim(mv,()=>{G.busy=false;doMove(mv)})}
+  const mv=G.tg.find(m=>m.tr===r&&m.tc===c);if(mv){G.hint=[];if(G.mode==='game'&&G.help>0)return preMove(mv);G.busy=true;return anim(mv,()=>{G.busy=false;doMove(mv)})}
   const p=G.s.b[r][c];
   if(p&&isW(p)){G.sel=[r,c];G.tg=movesFrom(r,c);snd('tap');const t=p.toUpperCase();
-    if(G.mode==='game'&&!G.tips[t]){G.tips[t]=1;say(TIP[t])}
+    if(G.mode==='game'&&G.help===2)G.tg.forEach(m=>m.bad=isBad(G.s,m));
+    if(G.mode==='game'&&!G.tips[t]){G.tips[t]=1;say(TIP[t]+(G.help===2&&!G.tips.col?' Puntos verdes: casillas seguras. Puntos rojos: ahí te la pueden comer.':''));G.tips.col=1}
     if(!G.tg.length&&G.mode!=='stars')say(`${EL[t]==='la'?'La':'El'} ${NAME[t].toLowerCase()} no puede moverse ahora. Prueba con otra pieza.`)}
   else{G.sel=null;G.tg=[]}
   draw()}
@@ -369,7 +383,7 @@ function movesFrom(r,c){return(G.mode==='stars'?pseudo(G.s):legal(G.s)).filter(m
 function ctrls(list){$('#ctrls').innerHTML=list.map((b,i)=>`<button class="btn ${b.c||''}" data-k="${i}">${b.t}</button>`).join('');
   $('#ctrls').onclick=e=>{const b=e.target.closest('[data-k]');if(b){initAudio();list[+b.dataset.k].fn()}}}
 function setInfo(h){$('#info').innerHTML=h}
-function play(i){const m=MIS[i];G.mi=i;G.li=0;G.earn=[];G.err=0;G.hint=[];G.glow=null;G.flash=null;G.last=null;G.sel=null;G.tg=[];G.stars=new Set;G.busy=false;
+function play(i){$('#guide').hidden=true;const m=MIS[i];G.mi=i;G.li=0;G.earn=[];G.err=0;G.hint=[];G.glow=null;G.flash=null;G.last=null;G.sel=null;G.tg=[];G.stars=new Set;G.busy=false;
   $('#map').hidden=true;$('#play').hidden=false;$('#ptitle').textContent=m.t;window.scrollTo(0,0);
   ({coords:startCoords,stars:loadLevel,quiz:startQuiz,puz:loadPuz,game:startGame})[m.k]()}
 /* ---------- estrellas ---------- */
@@ -463,17 +477,87 @@ function mvPuz(m){const prev=G.s,ns=make(G.s,m);G.s=ns;G.sel=null;G.tg=[];G.last
     else{snd('check');const a=attackers(ns.b,...kingPos(ns.b,'b'),'w').map(([y,x])=>`tu ${pname(ns.b[y][x].toUpperCase())} en ${nm(y,x)}`);G.hint=attackers(ns.b,...kingPos(ns.b,'b'),'w');draw();say(`¡JAQUE! ${lst(a)} ataca al rey negro.`);setTimeout(nextPuz,2200)}}
   else{draw();snd('bad');G.err++;say(mt.goal==='mate'&&inCheck(ns,'b')?'Es jaque, pero el rey puede escapar. Busca otra jugada.':'Esa jugada no ataca al rey. ¡Intenta otra vez!');
     setTimeout(()=>{G.s=prev;G.last=null;G.busy=false;draw()},1300)}}
+/* ---------- guía del duelo ---------- */
+const HELP=['Ninguna','Media','Máxima'];
+const OBJ=[['centro','Peón al centro','Mueve el peón de la columna d o e dos casillas hacia adelante: así controlas el centro.'],
+['caballo','Saca un caballo','Saca un caballo: de b1 a c3 o de g1 a f3.'],
+['alfil','Saca un alfil','Saca un alfil a una diagonal larga, por ejemplo a c4 o a e2.'],
+['enroque','Enroca','Enroca: cuando no haya piezas entre tu rey y tu torre, toca el rey y muévelo dos casillas hacia la torre.'],
+['comer','Come una pieza','Busca una pieza de Robi que puedas comer sin perder la tuya.'],
+['jaque','Haz jaque','Busca una jugada que ataque al rey de Robi.'],
+['gana','Gana la partida','Ataca al rey de Robi con varias piezas a la vez hasta darle jaque mate.']];
+const ICO={risk:'<svg viewBox="0 0 24 24"><path d="M12 2 23 21H1z" fill="#ff4d8d"/><rect x="11" y="9" width="2.4" height="6" fill="#fff"/><rect x="11" y="16.5" width="2.4" height="2.4" fill="#fff"/></svg>',
+opp:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#7ee03b"/><circle cx="12" cy="12" r="6" fill="#fff"/><circle cx="12" cy="12" r="3" fill="#7ee03b"/></svg>',
+obj:'<svg viewBox="0 0 24 24"><rect x="4" y="2" width="2.5" height="20" fill="#ffd23f"/><path d="M6.5 3h13l-3 4.5 3 4.5h-13z" fill="#ffd23f"/></svg>',
+robi:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="4" fill="#38d3ff"/><rect x="7" y="9" width="3" height="3" fill="#0f1f7a"/><rect x="14" y="9" width="3" height="3" fill="#0f1f7a"/><rect x="8" y="14.5" width="8" height="2" fill="#0f1f7a"/></svg>'};
+const minAtk=(b,at)=>Math.min(...at.map(([y,x])=>{const q=b[y][x].toUpperCase();return q==='K'?99:PTS[q]}));
+function isBad(s,m){const n=make(s,m),t=(m.promo||s.b[m.fr][m.fc]).toUpperCase();if(t==='K')return false;
+  const at=attackers(n.b,m.tr,m.tc,'b');if(!at.length)return false;
+  const bad=!attacked(n.b,m.tr,m.tc,'w')||minAtk(n.b,at)<PTS[t];
+  return bad&&(!m.cap||PTS[t]>PTS[m.cap.toUpperCase()])}
+function bestV(){if(G.an&&G.an.s===G.s)return G.an.v;const v=searchPV(G.s,3,-1e6,1e6).v;G.an={s:G.s,v};return v}
+function dangerWhy(ns){const r=best(ns,2,0);if(!r)return 'Esa jugada no es buena.';const n2=make(ns,r),t=ns.b[r.fr][r.fc].toUpperCase();
+  if(inCheck(n2,'w')&&!legal(n2).length)return `Si mueves ahí, Robi te da jaque mate moviendo ${EL[t]} ${pname(t)} a ${nm(r.tr,r.tc)}.`;
+  if(r.cap){const c=r.cap.toUpperCase();return `Si mueves ahí, Robi se come tu ${pname(c)} en ${nm(r.tr,r.tc)} y pierdes ${PTS[c]} punto${PTS[c]>1?'s':''}.`}
+  return 'Si mueves ahí, Robi consigue ventaja. Hay una jugada mejor.'}
+function preMove(m){G.busy=true;$('#pstep').textContent='Robi revisa tu jugada…';
+  setTimeout(()=>{const ns=make(G.s,m),mate=inCheck(ns,'b')&&!legal(ns).length;
+    const loss=mate?0:Math.max(0,bestV()-(-search(ns,2,-1e6,1e6)));G.loss=loss;$('#pstep').textContent=LV[G.lvl].n;
+    if(G.help===2&&loss>250){G.busy=false;const w=dangerWhy(ns);snd('bad');say('¡Espera, Jacobo! '+w);
+      modal('¿Estás seguro?',0,`${w}<br><br>Un buen jugador revisa antes de mover. ¿Quieres pensar otra jugada?`,[{t:'Mover igual',c:'w',fn:()=>go(m)},{t:'Pensar otra vez',c:'g',fn:()=>{G.sel=null;G.tg=[];say('¡Bien pensado! Mira el panel «Tu turno» y las casillas de colores.');draw()}}]);return}
+    go(m)},30)}
+function go(m){G.busy=true;anim(m,()=>{G.busy=false;doMove(m)})}
+function rate(){if(!G.help||G.loss==null)return '';const l=G.loss;G.loss=null;
+  if(l<=30){G.stats.ex++;return '¡Excelente jugada! '}if(l<=100){G.stats.bu++;return '¡Buena jugada! '}
+  if(l<=250){G.stats.re++;return 'Jugada regular: había algo mejor. '}G.stats.er++;return G.help===1?'Esa jugada fue un error. Puedes tocar «Deshacer». ':'Esa jugada fue un error. '}
+function objCheck(m,mover,ns){const got=[];const add=k=>{if(!G.obj[k]){G.obj[k]=1;got.push(OBJ.find(o=>o[0]===k)[1])}};
+  if(ns.b[4][3]==='P'||ns.b[4][4]==='P'||ns.b[3][3]==='P'||ns.b[3][4]==='P')add('centro');
+  if(mover==='N'&&m.fr===7)add('caballo');if(mover==='B'&&m.fr===7)add('alfil');if(m.castle)add('enroque');
+  if(m.cap)add('comer');if(inCheck(ns,'b'))add('jaque');
+  if(got.length){addGems(got.length);setTimeout(()=>snd('star'),250);return ` Objetivo cumplido: ${lst(got)}. +${got.length} gema${got.length>1?'s':''}.`}return ''}
+function nextObj(){return OBJ.find(([k])=>!G.obj[k]&&!(k==='enroque'&&!/[KQ]/.test(G.s.cs)))}
+function robiWhy(s,m){const t=s.b[m.fr][m.fc].toUpperCase(),ns=make(s,m),R=[];
+  if(m.cap)R.push(`comerse tu ${pname(m.cap.toUpperCase())}`);
+  if(m.castle)return 'Robi enrocó para proteger a su rey.';
+  if(m.promo)R.push('coronar su peón y tener otra reina');
+  if(!m.cap&&t!=='K'&&attacked(s.b,m.fr,m.fc,'w')&&!attacked(s.b,m.fr,m.fc,'b'))R.push(`salvar su ${pname(t)}, que estaba en peligro`);
+  if(inCheck(ns,'w'))R.push('darte jaque');
+  const th=pseudo({b:ns.b,turn:'b',cs:'',ep:null}).filter(x=>x.fr===m.tr&&x.fc===m.tc&&x.cap&&x.cap!=='K'&&(!attacked(ns.b,x.tr,x.tc,'w')||PTS[x.cap.toUpperCase()]>PTS[(m.promo||t).toUpperCase()]));
+  if(th.length)R.push(`amenazar tu ${pname(th[0].cap.toUpperCase())} en ${nm(th[0].tr,th[0].tc)}`);
+  if(!R.length){if((t==='N'||t==='B')&&m.fr===0)R.push('sacar una pieza a jugar');else if(t==='P'&&(m.tc===3||m.tc===4))R.push('pelear por el centro');else R.push('mejorar su posición')}
+  return `Robi movió ${EL[t]} ${pname(t)} de ${nm(m.fr,m.fc)} a ${nm(m.tr,m.tc)} para ${lst(R)}.`}
+function guide(){const el=$('#guide');G.opp=[];G.risk=[];if(G.mode!=='game'||G.over){el.hidden=true;return}
+  const s=G.s,it=[];
+  if(inCheck(s,'w'))it.push(['risk','¡Estás en jaque! Tienes tres salidas: mover el rey, tapar el ataque con otra pieza o comerte la pieza que ataca.']);
+  if(G.help>0){const ms=legal(s);
+    if(ms.some(m=>{const n=make(s,m);return inCheck(n,'b')&&!legal(n).length}))it.push(['opp','¡Puedes dar JAQUE MATE en una sola jugada! Búscalo con calma.']);
+    const seen=new Set,opp=[];
+    for(const m of ms){if(!m.cap||m.cap==='k')continue;const k=m.tr*8+m.tc;if(seen.has(k))continue;const a=s.b[m.fr][m.fc].toUpperCase(),v=m.cap.toUpperCase();const n=make(s,m);
+      if(!attacked(n.b,m.tr,m.tc,'b')||PTS[v]>PTS[a]){seen.add(k);opp.push([m.tr,m.tc])}}
+    if(opp.length)it.push(['opp',G.help===2?`Puedes comer sin perder nada: ${lst(opp.map(([y,x])=>`${EL[s.b[y][x].toUpperCase()]} ${pname(s.b[y][x].toUpperCase())} en ${nm(y,x)}`))}. Tiene${opp.length>1?'n':''} borde verde.`:
+      opp.length>1?`Hay ${opp.length} piezas de Robi que puedes comer gratis. ¿Las encuentras?`:'Hay una pieza de Robi que puedes comer gratis. ¿La encuentras?']);
+    const risk=[];
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){const p=s.b[r][c];if(!p||!isW(p)||p==='K')continue;const at=attackers(s.b,r,c,'b');if(!at.length)continue;
+      if(!attacked(s.b,r,c,'w')||minAtk(s.b,at)<PTS[p])risk.push([r,c])}
+    if(risk.length)it.push(['risk',`Peligro: ${lst(risk.map(([y,x])=>`tu ${pname(s.b[y][x])} en ${nm(y,x)}`))} ${risk.length>1?'pueden':'puede'} ser capturad${risk.length>1?'os':'o'}. Muével${risk.length>1?'os':'o'} o protégel${risk.length>1?'os':'o'}.`]);
+    if(G.help===2){G.opp=opp;G.risk=risk}}
+  const o=nextObj();if(o)it.push(['obj',`Objetivo: ${o[2]}`]);
+  el.hidden=false;
+  el.innerHTML=`<h3>Tu turno</h3>${it.map(([k,t])=>`<div class="gi ${k}">${ICO[k]}<span>${t}</span></div>`).join('')}${G.help===2?`<div class="lg"><span><i class="g1"></i>casilla segura</span><span><i class="g2"></i>peligro</span><span><i class="g3"></i>puedes comer</span></div>`:''}`}
 /* ---------- partida ---------- */
 const LV=[{n:'Fácil',d:1,z:220,gm:5,st:1},{n:'Medio',d:2,z:40,gm:10,st:2},{n:'Difícil',d:3,z:12,gm:20,st:3}];
 const MAXH=5;G.lvl=0;
-function startGame(){G.mode='game';board(true);G.s=parseFEN(START);G.hist=[];G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.tips={};G.stars=new Set;G.over=false;G.hl=MAXH;
-  $('#pstep').textContent=LV[G.lvl].n;say(`¡A jugar! Tú juegas con las blancas y empiezas. Tienes ${MAXH} pistas en esta partida: úsalas cuando de verdad no sepas qué hacer.`);gameUI();draw(true)}
+function startGame(){G.mode='game';board(true);G.s=parseFEN(START);G.hist=[];G.sel=null;G.tg=[];G.last=null;G.hint=[];G.busy=false;G.tips={};G.stars=new Set;G.over=false;G.hl=MAXH;G.obj={};G.stats={ex:0,bu:0,re:0,er:0};G.an=null;G.loss=null;G.lastRobi='';G.help=P.help==null?2:P.help;
+  $('#pstep').textContent=LV[G.lvl].n;say(`¡A jugar! Juegas con las blancas y empiezas. Yo te acompaño: mira el panel «Tu turno» antes de cada jugada. Tienes ${MAXH} pistas para cuando de verdad no sepas qué hacer.`);gameUI();guide();draw(true)}
 function mat(b,w){return b.flat().filter(p=>p&&isW(p)===w).reduce((a,p)=>a+PTS[p.toUpperCase()],0)}
 function gameUI(){const a=mat(G.s.b,true),r=mat(G.s.b,false);
   setInfo(`<div class="row"><span>Nivel de Robi</span><span class="lvl">${LV.map((l,i)=>`<button class="tog" data-l="${i}" aria-pressed="${i===G.lvl}">${l.n}</button>`).join('')}</span></div>
   <div class="mat"><b>Tú ${a}</b><div class="bar"><i style="width:${a+r?a/(a+r)*100:50}%"></i></div><b>${r} Robi</b></div>
-  <div class="row"><span>${a>r?`¡Vas ganando por ${a-r}!`:a<r?`Robi va ganando por ${r-a}`:'Van empatados en puntos'}</span><span>Pistas: <b>${G.hl} de ${MAXH}</b></span></div>`);
-  $('#info').onclick=e=>{const b=e.target.closest('[data-l]');if(b){G.lvl=+b.dataset.l;startGame()}};
+  <div class="row"><span>${a>r?`¡Vas ganando por ${a-r}!`:a<r?`Robi va ganando por ${r-a}`:'Van empatados en puntos'}</span><span>Pistas: <b>${G.hl} de ${MAXH}</b></span></div>
+  <div class="row"><span>Ayuda del entrenador</span><span class="lvl">${HELP.map((l,i)=>`<button class="tog" data-h="${i}" aria-pressed="${i===G.help}">${l}</button>`).reverse().join('')}</span></div>
+  <div class="chips">${OBJ.map(([k,n])=>`<span class="${G.obj[k]?'ok':''}">${G.obj[k]?'✓ ':''}${n}</span>`).join('')}</div>
+  ${G.help?`<div class="row"><span>Tus jugadas</span><span>Excelentes <b>${G.stats.ex}</b> · Buenas <b>${G.stats.bu}</b> · Regulares <b>${G.stats.re}</b> · Errores <b>${G.stats.er}</b></span></div>`:''}`);
+  $('#info').onclick=e=>{const b=e.target.closest('[data-l]');if(b){G.lvl=+b.dataset.l;startGame();return}const hb=e.target.closest('[data-h]');if(hb){G.help=P.help=+hb.dataset.h;save();G.sel=null;G.tg=[];gameUI();guide();draw();say(['Sin ayuda: ¡ahora juegas tú solo!','Ayuda media: te aviso de peligros y oportunidades, pero tú las buscas.','Ayuda máxima: colores en el tablero, avisos y te detengo antes de un error.'][G.help])}};
   ctrls([{t:G.hl?`Pista (${G.hl})`:'Sin pistas',c:'w',fn:hintGame},{t:'Deshacer',c:'w',fn:undo},{t:'Nueva partida',c:'p',fn:startGame}]);
   if(!G.hl)$('#ctrls [data-k="0"]').disabled=true}
 function mdesc(s,m){const t=s.b[m.fr][m.fc].toUpperCase();if(m.castle)return 'el rey para enrocar';
@@ -501,35 +585,37 @@ function hintGame(){if(G.busy||G.over)return;
   if(st[1])msg+=` Plan: si Robi mueve ${mdesc(...st[1])}${st[2]?`, tú sigues con ${mdesc(...st[2])}`:''}.`;
   msg+=' '+tipFase();
   G.hint=[[m.fr,m.fc],[m.tr,m.tc]];G.sel=null;G.tg=[];say(msg);gameUI();draw()}
-function undo(){if(G.busy||!G.hist.length)return;G.s=G.hist.pop();G.over=false;G.last=null;G.sel=null;G.tg=[];G.hint=[];say('Listo, deshicimos la jugada. ¡Piensa con calma!');gameUI();draw()}
+function undo(){if(G.busy||!G.hist.length)return;G.s=G.hist.pop();G.over=false;G.last=null;G.sel=null;G.tg=[];G.hint=[];G.lastRobi='';G.an=null;say('Listo, deshicimos la jugada. ¡Piensa con calma!');gameUI();guide();draw()}
 function mvGame(m){if(G.over)return;G.hist.push(G.s);const mover=G.s.b[m.fr][m.fc].toUpperCase();const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.sel=null;G.tg=[];
-  let msg='';
+  let msg='',rt=rate();
   if(m.cap){const t=m.cap.toUpperCase();msg=`¡Te comiste ${EL[t]} ${pname(t)} de Robi! +${PTS[t]} punto${PTS[t]>1?'s':''}.`;snd('cap')}else snd('move');
   if(m.castle)msg='¡Enroque! Tu rey quedó protegido.';
   if(m.promo)msg='¡Tu peón llegó al final y se convirtió en reina!';
   if(inCheck(ns,'b')){msg+=' ¡Jaque!';setTimeout(()=>snd('check'),150)}
   const pt=(m.promo||mover).toUpperCase();
   if(pt!=='K'&&attacked(ns.b,m.tr,m.tc,'b')&&!attacked(ns.b,m.tr,m.tc,'w'))msg+=` Ojo: tu ${pname(pt)} en ${nm(m.tr,m.tc)} se puede perder.`;
-  if(msg)say(msg.trim());
+  msg+=objCheck(m,mover,ns);G.lastRobi='';G.opp=[];G.risk=[];$('#guide').hidden=true;
+  G.lastMsg=(rt+msg).trim();if(G.lastMsg)say(G.lastMsg);
   gameUI();draw();if(endCheck())return;
   G.busy=true;$('#pstep').textContent='Robi piensa…';
   setTimeout(robot,500)}
 function robot(){const L=LV[G.lvl];const m=best(G.s,L.d,L.z);if(!m){G.busy=false;return}
-  G.sel=[m.fr,m.fc];G.hint=[];draw();
+  G.prev=G.s;G.sel=[m.fr,m.fc];G.hint=[];draw();
   setTimeout(()=>anim(m,()=>{const ns=make(G.s,m);G.s=ns;G.last=[m.fr,m.fc,m.tr,m.tc];G.sel=null;G.busy=false;$('#pstep').textContent=L.n;
-    let msg='';
-    if(m.cap){const t=m.cap.toUpperCase();msg=`Robi se comió tu ${pname(t)}.`;snd('cap')}else snd('move');
+    const prevS=G.prev;let msg=robiWhy(prevS,m);G.lastRobi=msg;
+    if(m.cap)snd('cap');else snd('move');
     if(inCheck(ns,'w')){msg+=' ¡Estás en jaque! Protege a tu rey: muévelo, tapa el ataque o come la pieza que ataca.';setTimeout(()=>snd('check'),150)}
-    if(msg)say(msg.trim());
-    gameUI();draw();endCheck()}),450)}
+    say(((G.lastMsg?G.lastMsg+' ':'')+msg).trim());G.lastMsg='';
+    gameUI();if(!endCheck()){guide();draw();if(G.help>0)setTimeout(()=>{if(!G.busy&&!G.over)bestV()},80)}}),450)}
+function statsTxt(){const s=G.stats;return G.help&&s?`<br><br><b>Tus jugadas:</b> ${s.ex} excelentes, ${s.bu} buenas, ${s.re} regulares y ${s.er} errores.`:''}
 function endCheck(){const ms=legal(G.s);const only=G.s.b.flat().filter(Boolean).length===2;
-  if(ms.length&&!only)return false;G.over=true;G.busy=false;
+  if(ms.length&&!only)return false;G.over=true;G.busy=false;$('#guide').hidden=true;G.opp=[];G.risk=[];
   const L=LV[G.lvl];
   if(!only&&inCheck(G.s,G.s.turn)){
-    if(G.s.turn==='b'){const ex=explainMate(G.s,'El rey de Robi',true);G.hint=ex.atk;draw();snd('win');addGems(L.gm);P.done.duel=Math.max(P.done.duel||0,L.st);save();say('¡JAQUE MATE! '+ex.t);
-      setTimeout(()=>modal('¡Le ganaste a Robi!',L.st,`<b>¿Por qué es jaque mate?</b> ${ex.t}<br><br>Nivel ${L.n}. +${L.gm} gemas${G.lvl<2?'. ¿Probamos el siguiente nivel?':''}`,[{t:'Otra partida',c:'w',fn:startGame},G.lvl<2?{t:'Subir de nivel',c:'g',fn:()=>{G.lvl++;startGame()}}:{t:'Volver al mapa',c:'g',fn:showMap}]),3500)}
+    if(G.s.turn==='b'){G.obj.gana=1;const ex=explainMate(G.s,'El rey de Robi',true);G.hint=ex.atk;draw();snd('win');addGems(L.gm);P.done.duel=Math.max(P.done.duel||0,L.st);save();say('¡JAQUE MATE! '+ex.t);
+      setTimeout(()=>modal('¡Le ganaste a Robi!',L.st,`<b>¿Por qué es jaque mate?</b> ${ex.t}${statsTxt()}<br><br>Nivel ${L.n}. +${L.gm} gemas${G.lvl<2?'. ¿Probamos el siguiente nivel?':''}`,[{t:'Otra partida',c:'w',fn:startGame},G.lvl<2?{t:'Subir de nivel',c:'g',fn:()=>{G.lvl++;startGame()}}:{t:'Volver al mapa',c:'g',fn:showMap}]),3500)}
     else{const ex=explainMate(G.s,'Tu rey',false);G.hint=ex.atk;draw();snd('bad');say('Jaque mate de Robi. '+ex.t);
-      setTimeout(()=>modal('Robi ganó esta vez',0,`<b>¿Qué pasó?</b> ${ex.t}<br><br>La próxima vez deja casillas libres alrededor de tu rey y fíjate en qué piezas de Robi lo apuntan. Toca «Deshacer» para volver atrás e intentar otra jugada.`,[{t:'Deshacer',c:'w',fn:undo},{t:'Revancha',c:'g',fn:startGame}]),3500)}}
+      setTimeout(()=>modal('Robi ganó esta vez',0,`<b>¿Qué pasó?</b> ${ex.t}<br><br>La próxima vez deja casillas libres alrededor de tu rey y fíjate en qué piezas de Robi lo apuntan. Toca «Deshacer» para volver atrás e intentar otra jugada.${statsTxt()}`,[{t:'Deshacer',c:'w',fn:undo},{t:'Revancha',c:'g',fn:startGame}]),3500)}}
   else{addGems(2);say('¡Tablas! Nadie gana. +2 gemas.');setTimeout(()=>modal('¡Tablas!',1,only?'Solo quedaron los dos reyes: ninguno puede dar jaque mate. +2 gemas':'El rey no tiene jugadas pero no está en jaque: eso es «ahogado». +2 gemas',[{t:'Otra partida',c:'g',fn:startGame}]),1500)}
   return true}
 /* ---------- modal ---------- */
